@@ -1,0 +1,58 @@
+const data = [
+  {
+    id: 1,
+    header: "Tenant: Acme Corp",
+    type: "Tenant",
+    status: "Active",
+    target: "-",
+    limit: "-",
+    reviewer: "System",
+  },
+  {
+    id: 2,
+    header: "Tenant: Bluewater Ltd",
+    type: "Tenant",
+    status: "Active",
+    target: "-",
+    limit: "-",
+    reviewer: "System",
+  },
+  {
+    id: 3,
+    header: "Billing: June Invoices",
+    type: "Billing",
+    status: "Pending",
+    target: "$0",
+    limit: "$10,000",
+    reviewer: "Finance",
+  },
+  {
+    id: 4,
+    header: "Audit: Login Anomalies",
+    type: "Audit",
+    status: "In Progress",
+    target: "0 anomalies",
+    limit: "5",
+    reviewer: "Security",
+  },
+  {
+    id: 5,
+    header: "Incidents: Open Support Tickets",
+    type: "Support",
+    status: "Open",
+    target: "< 10",
+    limit: "50",
+    reviewer: "Support",
+  },
+  {
+    id: 6,
+    header: "Provisioning Queue",
+    type: "Provisioning",
+    status: "Queued",
+    target: "0",
+    limit: "100",
+    reviewer: "Ops",
+  },
+];
+
+export default data;
