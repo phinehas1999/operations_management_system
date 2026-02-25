@@ -1,25 +1,43 @@
-"use client"
+"use client";
 
-import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
+import { usePathname } from "next/navigation";
+import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: Icon
-  }[]
+    title: string;
+    url: string;
+    icon?: Icon;
+  }[];
 }) {
+  const pathname = usePathname() ?? "/";
+
+  // Choose the nav item with the longest URL that matches the current pathname.
+  // This ensures child routes (e.g. /superadmin/tenants) match the more specific
+  // item (/superadmin/tenants) instead of the parent (/superadmin).
+  const activeUrl =
+    items
+      .filter((it) => {
+        if (!it.url) return false;
+        if (pathname === it.url) return true;
+        // match sub-paths: item.url + "/" is a prefix of pathname
+        return pathname.startsWith(
+          it.url.endsWith("/") ? it.url : it.url + "/",
+        );
+      })
+      .sort((a, b) => b.url.length - a.url.length)[0]?.url ?? "";
+
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
@@ -43,16 +61,26 @@ export function NavMain({
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title}>
-                {item.icon && <item.icon />}
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            const isActive = item.url === activeUrl || pathname === item.url;
+
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={!!isActive}
+                  tooltip={item.title}
+                >
+                  <a href={item.url}>
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  )
+  );
 }

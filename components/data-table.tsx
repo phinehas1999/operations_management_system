@@ -341,6 +341,7 @@ export function DataTable({
 }: {
   data: z.infer<typeof schema>[]
 }) {
+  const [mounted, setMounted] = React.useState(false)
   const [data, setData] = React.useState(() => initialData)
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -359,6 +360,8 @@ export function DataTable({
     useSensor(TouchSensor, {}),
     useSensor(KeyboardSensor, {})
   )
+
+  React.useEffect(() => setMounted(true), [])
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
     () => data?.map(({ id }) => id) || [],
@@ -399,6 +402,14 @@ export function DataTable({
         return arrayMove(data, oldIndex, newIndex)
       })
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="px-4 lg:px-6 text-sm text-muted-foreground">
+        Loading table...
+      </div>
+    )
   }
 
   return (

@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
   IconDots,
   IconFolder,
@@ -35,6 +36,9 @@ export function NavDocuments({
   }[]
 }) {
   const { isMobile } = useSidebar()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => setMounted(true), [])
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
@@ -48,36 +52,47 @@ export function NavDocuments({
                 <span>{item.name}</span>
               </a>
             </SidebarMenuButton>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuAction
-                  showOnHover
-                  className="data-[state=open]:bg-accent rounded-sm"
+            {mounted ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuAction
+                    showOnHover
+                    className="data-[state=open]:bg-accent rounded-sm"
+                  >
+                    <IconDots />
+                    <span className="sr-only">More</span>
+                  </SidebarMenuAction>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-24 rounded-lg"
+                  side={isMobile ? "bottom" : "right"}
+                  align={isMobile ? "end" : "start"}
                 >
-                  <IconDots />
-                  <span className="sr-only">More</span>
-                </SidebarMenuAction>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-24 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
-                align={isMobile ? "end" : "start"}
+                  <DropdownMenuItem>
+                    <IconFolder />
+                    <span>Open</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <IconShare3 />
+                    <span>Share</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive">
+                    <IconTrash />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <SidebarMenuAction
+                showOnHover
+                className="data-[state=open]:bg-accent rounded-sm"
+                aria-hidden
               >
-                <DropdownMenuItem>
-                  <IconFolder />
-                  <span>Open</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <IconShare3 />
-                  <span>Share</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive">
-                  <IconTrash />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <IconDots />
+                <span className="sr-only">More</span>
+              </SidebarMenuAction>
+            )}
           </SidebarMenuItem>
         ))}
         <SidebarMenuItem>
