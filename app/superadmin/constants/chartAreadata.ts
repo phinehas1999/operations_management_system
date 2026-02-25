@@ -97,8 +97,8 @@ export const chartAreaData: { data: ChartPoint[]; config: ChartConfig } = {
     { date: "2024-06-30", tenants: 161, revenue: 44600 },
   ],
   config: {
-    tenants: { label: "Tenants", color: "var(--primary)" },
-    revenue: { label: "Revenue", color: "var(--green)" },
+    tenants: { label: "Tenants", color: "var(--chart-1)" },
+    revenue: { label: "Revenue", color: "var(--chart-2)" },
   } satisfies ChartConfig,
 };
 
