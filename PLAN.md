@@ -1,6 +1,12 @@
 # 🏗 Project: Smart Operations Management System (OMS)
 
 Production-style internal business dashboard with RBAC, tasks, assets, notifications, and reports.
+Multi-tenant SaaS with role areas and tenant scoping:
+
+- Admin → /admin
+- Manager → /manager
+- Staff → /staff
+- Platform Superadmin (software provider) → /superadmin (manages tenants and platform)
 
 ---
 
@@ -26,7 +32,7 @@ Production-style internal business dashboard with RBAC, tasks, assets, notificat
 Notes
 
 - Drizzle migrations own schema changes.
-- NextAuth: store sessions in DB; hash passwords (argon2/bcrypt); include `userId` and `role` in JWT.
+- NextAuth: store sessions in DB; hash passwords (argon2/bcrypt); include userId, role, tenantId, and isSuperAdmin in JWT; redirect to /admin, /manager, /staff, /superadmin.
 - Use Zod for input validation; add basic rate limiting on auth endpoints.
 - Neon is the primary Postgres DB (serverless, branching, fast deploys).
 
@@ -42,17 +48,30 @@ Conventions
 
 ## Tables
 
+### tenants
+
+| column     | type        | constraints      | notes                   |
+| ---------- | ----------- | ---------------- | ----------------------- |
+| id         | uuid        | pk               |                         |
+| slug       | text        | unique, not null | used for subdomain/path |
+| name       | text        | not null         | tenant name             |
+| plan       | text        | nullable         | billing/feature tier    |
+| settings   | jsonb       | default {}       | branding, feature flags |
+| created_at | timestamptz | default now()    |                         |
+
 ### users
 
-| column     | type        | constraints              | notes                       |
-| ---------- | ----------- | ------------------------ | --------------------------- |
-| id         | uuid        | pk                       |                             |
-| name       | text        | not null                 |                             |
-| email      | text        | not null, unique         |                             |
-| password   | text        | not null                 | hashed                      |
-| role       | enum        | not null, default STAFF  | ADMIN\|MANAGER\|STAFF       |
-| team_id    | uuid        | fk -> teams.id, nullable | single-team membership (v1) |
-| created_at | timestamptz | default now()            |                             |
+| column        | type        | constraints                               | notes                             |
+| ------------- | ----------- | ----------------------------------------- | --------------------------------- |
+| id            | uuid        | pk                                        |                                   |
+| name          | text        | not null                                  |                                   |
+| email         | text        | not null, unique                          |                                   |
+| password      | text        | not null                                  | hashed                            |
+| role          | enum        | not null, default STAFF                   | SUPERADMIN\|ADMIN\|MANAGER\|STAFF |
+| tenant_id     | uuid        | fk -> tenants.id, nullable for superadmin | tenant scoping                    |
+| is_superadmin | boolean     | default false                             | platform-level flag               |
+| team_id       | uuid        | fk -> teams.id, nullable                  | single-team membership (v1)       |
+| created_at    | timestamptz | default now()                             |                                   |
 
 ### teams
 
@@ -64,40 +83,43 @@ Conventions
 
 ### tasks
 
-| column      | type        | constraints              | notes                                |
-| ----------- | ----------- | ------------------------ | ------------------------------------ |
-| id          | uuid        | pk                       |                                      |
-| title       | text        | not null                 |                                      |
-| description | text        | nullable                 |                                      |
-| priority    | enum        | default MEDIUM           | LOW\|MEDIUM\|HIGH                    |
-| status      | enum        | default TODO             | TODO\|IN_PROGRESS\|REVIEW\|COMPLETED |
-| deadline    | timestamptz | nullable                 |                                      |
-| assigned_to | uuid        | fk -> users.id, nullable |                                      |
-| created_by  | uuid        | fk -> users.id, not null |                                      |
-| team_id     | uuid        | fk -> teams.id, nullable |                                      |
-| created_at  | timestamptz | default now()            |                                      |
+| column      | type        | constraints                | notes                                |
+| ----------- | ----------- | -------------------------- | ------------------------------------ |
+| id          | uuid        | pk                         |                                      |
+| title       | text        | not null                   |                                      |
+| description | text        | nullable                   |                                      |
+| priority    | enum        | default MEDIUM             | LOW\|MEDIUM\|HIGH                    |
+| status      | enum        | default TODO               | TODO\|IN_PROGRESS\|REVIEW\|COMPLETED |
+| deadline    | timestamptz | nullable                   |                                      |
+| assigned_to | uuid        | fk -> users.id, nullable   |                                      |
+| created_by  | uuid        | fk -> users.id, not null   |                                      |
+| team_id     | uuid        | fk -> teams.id, nullable   |                                      |
+| tenant_id   | uuid        | fk -> tenants.id, not null | tenant scoping                       |
+| created_at  | timestamptz | default now()              |                                      |
 
 ### task_comments
 
-| column     | type        | constraints              | notes |
-| ---------- | ----------- | ------------------------ | ----- |
-| id         | uuid        | pk                       |       |
-| task_id    | uuid        | fk -> tasks.id, not null |       |
-| user_id    | uuid        | fk -> users.id, not null |       |
-| message    | text        | not null                 |       |
-| created_at | timestamptz | default now()            |       |
+| column     | type        | constraints                | notes |
+| ---------- | ----------- | -------------------------- | ----- |
+| id         | uuid        | pk                         |       |
+| task_id    | uuid        | fk -> tasks.id, not null   |       |
+| user_id    | uuid        | fk -> users.id, not null   |       |
+| message    | text        | not null                   |       |
+| tenant_id  | uuid        | fk -> tenants.id, not null |       |
+| created_at | timestamptz | default now()              |       |
 
 ### assets
 
-| column            | type        | constraints              | notes            |
-| ----------------- | ----------- | ------------------------ | ---------------- |
-| id                | uuid        | pk                       |                  |
-| name              | text        | not null                 |                  |
-| category          | text        | nullable                 |                  |
-| quantity          | integer     | not null, default 0      |                  |
-| minimum_threshold | integer     | not null, default 0      | low-stock alerts |
-| team_id           | uuid        | fk -> teams.id, nullable |                  |
-| created_at        | timestamptz | default now()            |                  |
+| column            | type        | constraints                | notes            |
+| ----------------- | ----------- | -------------------------- | ---------------- |
+| id                | uuid        | pk                         |                  |
+| name              | text        | not null                   |                  |
+| category          | text        | nullable                   |                  |
+| quantity          | integer     | not null, default 0        |                  |
+| minimum_threshold | integer     | not null, default 0        | low-stock alerts |
+| team_id           | uuid        | fk -> teams.id, nullable   |                  |
+| tenant_id         | uuid        | fk -> tenants.id, not null |                  |
+| created_at        | timestamptz | default now()              |                  |
 
 ### asset_logs
 
@@ -138,39 +160,67 @@ Relationships
 
 ---
 
-# 3️⃣ Authentication System
+# 3️⃣ Authentication & Routing
 
 Build
 
 - Register
 - Login
 - Protected routes
-- Middleware for role checking
+- Middleware for role checking and role-based redirects to /admin, /manager, /staff, /superadmin
+- Tenant discovery: subdomain (tenant.app.com) or path (/t/tenant); middleware loads tenant by slug and sets tenantId in request context
 
 Role Access Rules
 
-- ADMIN: full access
-- MANAGER: manage tasks, view assets, assign staff
-- STAFF: view assigned tasks, update task status, view assets (read only)
+- SUPERADMIN (platform): full platform access; manage tenants, billing, and global settings
+- ADMIN (tenant): full access within tenant
+- MANAGER (tenant): manage tasks, view assets, assign staff (tenant-scoped)
+- STAFF (tenant): view assigned tasks, update task status, view assets (read only)
 
 Implementation Notes
 
 - NextAuth credentials provider + Drizzle adapter; JWT session strategy.
 - Hash passwords (argon2/bcrypt). Store refresh-like behavior via NextAuth session rotation if needed.
-- Middleware: check session + role per route segment.
+- Middleware: check session + role per route segment; enforce landing per role; redirect away from unauthorized sections.
+- Route map:
+  - /superadmin → platform area for tenant provisioning, billing, global settings
+  - /admin → tenant admin dashboard + user/team management + system settings + full reports
+  - /manager → tenant manager dashboard + task/asset oversight + assignments + reports slice
+  - /staff → tenant staff dashboard + my tasks + status updates + read-only assets
 
 ---
 
-# 4️⃣ Dashboard Structure
+# 4️⃣ Dashboard Structure (Per Role)
 
-Sidebar Navigation
+- Admin (/admin)
+  - Dashboard (global KPIs)
+  - Users & Roles
+  - Teams
+  - Tasks (all)
+  - Assets (all)
+  - Reports (full)
+  - Settings
 
-- Dashboard
-- Tasks
-- Assets
-- Reports
-- Team
-- Settings
+- Superadmin (/superadmin)
+  - Platform Dashboard (tenant KPIs, revenue, health)
+  - Tenants (provision, suspend, delete)
+  - Billing & Plans
+  - Platform Settings (email, domains, feature flags)
+  - Audit & Logs
+  - Support tooling (impersonate tenant admin, view incidents)
+
+- Manager (/manager)
+  - Dashboard (team KPIs)
+  - Tasks (team scope)
+  - Assets (team scope)
+  - Reports (team slice)
+  - Team (manage assignments)
+
+- Staff (/staff)
+  - Dashboard (my tasks KPIs)
+  - My Tasks
+  - Assets (read-only)
+  - Notifications
 
 ---
 
