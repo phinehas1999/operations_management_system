@@ -34,6 +34,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import sidebarData from "@/app/superadmin/constants/sidebardata";
+import { Button } from "@/components/ui/button";
+import { IconSun, IconMoon } from "@tabler/icons-react";
 
 const iconMap = {
   dashboard: IconDashboard,
@@ -105,6 +107,35 @@ export function AppSidebar({
   sidedebardata,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { sidedebardata?: SidebarData }) {
+  const [theme, setTheme] = React.useState<"light" | "dark" | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") {
+        setTheme(stored);
+        document.documentElement.classList.toggle("dark", stored === "dark");
+      } else {
+        const prefersDark = window.matchMedia?.(
+          "(prefers-color-scheme: dark)",
+        ).matches;
+        setTheme(prefersDark ? "dark" : "light");
+        document.documentElement.classList.toggle("dark", prefersDark);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, []);
+
+  function setMode(mode: "light" | "dark") {
+    try {
+      setTheme(mode);
+      localStorage.setItem("theme", mode);
+      document.documentElement.classList.toggle("dark", mode === "dark");
+    } catch (e) {
+      /* ignore */
+    }
+  }
   const resolvedData = React.useMemo(() => {
     const data = (sidedebardata ?? sidebarData) as SidebarData;
 
@@ -139,6 +170,28 @@ export function AppSidebar({
         <NavSecondary items={resolvedData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
+        <div className="flex items-center justify-between gap-2 w-full">
+          <div className="hidden sm:flex items-center gap-1 rounded-lg border px-1 py-0.5">
+            <Button
+              size="sm"
+              variant={theme === "light" ? "ghost" : "outline"}
+              onClick={() => setMode("light")}
+              className={`flex items-center gap-2 px-2 ${theme === "light" ? "bg-yellow-100 text-yellow-800" : ""}`}
+            >
+              <IconSun className="size-4" />
+              <span className="sr-only">Light</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={theme === "dark" ? "ghost" : "outline"}
+              onClick={() => setMode("dark")}
+              className={`flex items-center gap-2 px-2 ${theme === "dark" ? "bg-sky-800 text-white" : ""}`}
+            >
+              <IconMoon className="size-4" />
+              <span className="sr-only">Dark</span>
+            </Button>
+          </div>
+        </div>
         <NavUser user={resolvedData.user} />
       </SidebarFooter>
     </Sidebar>

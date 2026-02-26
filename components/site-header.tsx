@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { IconSun, IconMoon } from "@tabler/icons-react";
 
-export function SiteHeader({siteheaderdata}: {siteheaderdata?: any}) {
+export function SiteHeader({ siteheaderdata }: { siteheaderdata?: any }) {
   const [theme, setTheme] = React.useState<"light" | "dark" | null>(null);
 
   React.useEffect(() => {
@@ -46,29 +46,10 @@ export function SiteHeader({siteheaderdata}: {siteheaderdata?: any}) {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">{siteheaderdata?.title ?? "Documents"}</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1 rounded-lg border px-1 py-0.5">
-            <Button
-              size="sm"
-              variant={theme === "light" ? "ghost" : "outline"}
-              onClick={() => setMode("light")}
-              className={`flex items-center gap-2 px-2 ${theme === "light" ? "bg-yellow-100 text-yellow-800" : ""}`}
-            >
-              <IconSun className="size-4" />
-              <span className="sr-only">Light</span>
-            </Button>
-            <Button
-              size="sm"
-              variant={theme === "dark" ? "ghost" : "outline"}
-              onClick={() => setMode("dark")}
-              className={`flex items-center gap-2 px-2 ${theme === "dark" ? "bg-sky-800 text-white" : ""}`}
-            >
-              <IconMoon className="size-4" />
-              <span className="sr-only">Dark</span>
-            </Button>
-          </div>
-        </div>
+        <h1 className="text-base font-medium">
+          {siteheaderdata?.title ?? "Documents"}
+        </h1>
+        <div className="ml-auto" />
       </div>
     </header>
   );
