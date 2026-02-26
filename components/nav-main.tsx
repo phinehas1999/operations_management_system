@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react";
 
@@ -71,10 +72,10 @@ export function NavMain({
                   isActive={!!isActive}
                   tooltip={item.title}
                 >
-                  <a href={item.url}>
+                  <Link href={item.url} className="flex items-center gap-2">
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
