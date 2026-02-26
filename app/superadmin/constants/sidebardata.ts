@@ -19,17 +19,17 @@ const sidebarData = {
     },
     {
       title: "Billing & Plans",
-      url: "/superadmin/billing",
+      url: "/superadmin/billing_and_plans",
       icon: "report",
     },
     {
       title: "Platform Settings",
-      url: "/superadmin/settings",
+      url: "/superadmin/platform_settings",
       icon: "settings",
     },
     {
       title: "Audit & Logs",
-      url: "/superadmin/audit",
+      url: "/superadmin/audit_logs",
       icon: "report",
     },
   ],
@@ -55,13 +55,8 @@ const sidebarData = {
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "/superadmin/settings",
-      icon: "settings",
-    },
-    {
       title: "Get Help",
-      url: "/superadmin/support",
+      url: "/superadmin/get_help",
       icon: "help",
     },
     {
@@ -73,17 +68,17 @@ const sidebarData = {
   documents: [
     {
       name: "Tenant Registry",
-      url: "/superadmin/tenants",
+      url: "/superadmin/tenant_registry",
       icon: "database",
     },
     {
       name: "Billing Reports",
-      url: "/superadmin/billing/reports",
+      url: "/superadmin/billing_reports",
       icon: "report",
     },
     {
       name: "Platform Docs",
-      url: "/superadmin/docs",
+      url: "/superadmin/platform_docs",
       icon: "fileDescription",
     },
   ],

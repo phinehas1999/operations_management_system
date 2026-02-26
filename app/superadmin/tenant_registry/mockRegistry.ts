@@ -1,0 +1,48 @@
+const registry = [
+  {
+    id: "tnt_001",
+    name: "Acme Corp",
+    slug: "acme-corp",
+    plan: "Pro",
+    status: "Active",
+    seats: 12,
+    adminEmail: "admin@acme-corp.com",
+    createdAt: "2025-08-12T10:15:00Z",
+    monthlyRevenue: 348,
+  },
+  {
+    id: "tnt_002",
+    name: "Beta LLC",
+    slug: "beta-llc",
+    plan: "Enterprise",
+    status: "Active",
+    seats: 120,
+    adminEmail: "ops@beta-llc.com",
+    createdAt: "2024-11-05T14:32:00Z",
+    monthlyRevenue: 2380,
+  },
+  {
+    id: "tnt_003",
+    name: "Gamma Inc",
+    slug: "gamma-inc",
+    plan: "Free",
+    status: "Trial",
+    seats: 2,
+    adminEmail: "hello@gamma.inc",
+    createdAt: "2026-01-20T08:00:00Z",
+    monthlyRevenue: 0,
+  },
+  {
+    id: "tnt_004",
+    name: "Delta Partners",
+    slug: "delta-partners",
+    plan: "Pro",
+    status: "Suspended",
+    seats: 8,
+    adminEmail: "admin@deltapartners.com",
+    createdAt: "2023-06-30T09:45:00Z",
+    monthlyRevenue: 232,
+  },
+];
+
+export default registry;
