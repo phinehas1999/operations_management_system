@@ -24,6 +24,7 @@ import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
+import { useSession } from "next-auth/react";
 import {
   Sidebar,
   SidebarContent,
@@ -136,16 +137,26 @@ export function AppSidebar({
       /* ignore */
     }
   }
+  const { data: session } = useSession();
+
   const resolvedData = React.useMemo(() => {
     const data = (sidedebardata ?? sidebarData) as SidebarData;
 
+    const sessionUser = session?.user;
+
+    const user = {
+      name: sessionUser?.name ?? data.user.name,
+      email: sessionUser?.email ?? data.user.email,
+      avatar: (sessionUser as any)?.image ?? data.user.avatar,
+    };
+
     return {
-      user: data.user,
+      user,
       navMain: withOptionalIcons(data.navMain),
       navSecondary: withRequiredIcons(data.navSecondary),
       documents: withRequiredIcons(data.documents),
     };
-  }, [sidedebardata]);
+  }, [sidedebardata, session]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
