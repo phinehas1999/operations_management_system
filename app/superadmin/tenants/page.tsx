@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import tenants from "./mockTenants";
+// Fetch tenants from backend API instead of local mock data
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
@@ -32,13 +32,18 @@ export default function Page() {
   const [plan, setPlan] = React.useState("all");
   const [sortKey, setSortKey] = React.useState<"name" | "seats">("name");
 
+  const [tenants, setTenants] = React.useState<Array<any>>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [processingId, setProcessingId] = React.useState<string | null>(null);
+
   const plans = React.useMemo(() => {
     return Array.from(new Set(tenants.map((t) => t.plan))).sort();
-  }, []);
+  }, [tenants]);
 
   const statuses = React.useMemo(() => {
     return Array.from(new Set(tenants.map((t) => t.status))).sort();
-  }, []);
+  }, [tenants]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -47,22 +52,53 @@ export default function Page() {
       if (plan !== "all" && t.plan !== plan) return false;
       if (!q) return true;
       return (
-        t.name.toLowerCase().includes(q) ||
-        t.slug.toLowerCase().includes(q) ||
-        t.adminEmail.toLowerCase().includes(q)
+        (t.name || "").toLowerCase().includes(q) ||
+        (t.slug || "").toLowerCase().includes(q) ||
+        (t.adminEmail || "").toLowerCase().includes(q)
       );
     });
 
     if (sortKey === "name") {
-      out = out.sort((a, b) => a.name.localeCompare(b.name));
+      out = out.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     } else if (sortKey === "seats") {
-      out = out.sort((a, b) => a.seats - b.seats);
+      out = out.sort((a, b) => (a.seats || 0) - (b.seats || 0));
     }
 
     return out;
-  }, [query, status, plan, sortKey]);
+  }, [tenants, query, status, plan, sortKey]);
 
-  function exportCsv(rows: typeof tenants) {
+  React.useEffect(() => {
+    let mounted = true;
+    const ctrl = new AbortController();
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/superadmin/tenants", {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error("Failed to fetch tenants");
+        const data = await res.json();
+        if (!mounted) return;
+        setTenants(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        console.error(err);
+        setError(err?.message ?? "Unknown error");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+      ctrl.abort();
+    };
+  }, []);
+
+  function exportCsv(rows: Array<any>) {
     const headers = [
       "id",
       "name",
@@ -89,6 +125,53 @@ export default function Page() {
     a.download = "tenants.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  const formatDate = (ts: string) => {
+    if (!ts) return "";
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return ts;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const formatCurrency = (v: any) => {
+    if (v == null || v === "") return "";
+    if (typeof v === "number") {
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(v);
+      } catch {
+        return String(v);
+      }
+    }
+    return String(v);
+  };
+
+  async function toggleTenantStatus(id: string, currentStatus: string) {
+    const newStatus = currentStatus === "Active" ? "Suspended" : "Active";
+    setProcessingId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/superadmin/tenants", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to update tenant");
+      setTenants((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)),
+      );
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message ?? "Update failed");
+    } finally {
+      setProcessingId(null);
+    }
   }
 
   return (
@@ -137,6 +220,14 @@ export default function Page() {
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
+                  {loading && (
+                    <div className="text-sm text-muted-foreground ml-4">
+                      Loading...
+                    </div>
+                  )}
+                  {error && (
+                    <div className="text-sm text-destructive ml-4">{error}</div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Select value={status} onValueChange={(v) => setStatus(v)}>
                       <SelectTrigger size="sm">
@@ -195,6 +286,7 @@ export default function Page() {
                       <TableHead>Status</TableHead>
                       <TableHead>Seats</TableHead>
                       <TableHead>Admin</TableHead>
+                      <TableHead>Revenue</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -229,13 +321,13 @@ export default function Page() {
                           {t.adminEmail}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {t.createdAt}
+                          {formatCurrency(t.monthlyRevenue)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(t.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button size="sm" variant="ghost">
-                              Impersonate
-                            </Button>
                             <Button
                               size="sm"
                               variant={
@@ -243,8 +335,14 @@ export default function Page() {
                                   ? "destructive"
                                   : "outline"
                               }
+                              onClick={() => toggleTenantStatus(t.id, t.status)}
+                              disabled={processingId === t.id}
                             >
-                              {t.status === "Active" ? "Suspend" : "Activate"}
+                              {processingId === t.id
+                                ? "..."
+                                : t.status === "Active"
+                                  ? "Suspend"
+                                  : "Activate"}
                             </Button>
                           </div>
                         </TableCell>

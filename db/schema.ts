@@ -18,11 +18,19 @@ export const roleEnum = pgEnum("role", [
   "STAFF",
 ]);
 
+export const planEnum = pgEnum("plan", ["Trial", "Basic", "Pro", "Enterprise"]);
+
+export const statusEnum = pgEnum("tenant_status", ["Active", "Suspended"]);
+
 export const tenants = pgTable("tenants", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-  plan: text("plan"),
+  plan: planEnum("plan").notNull().default("Trial"),
+  status: statusEnum("status").notNull().default("Active"),
+  seats: integer("seats").notNull().default(1),
+  adminEmail: text("admin_email"),
+  monthlyRevenue: integer("monthly_revenue").notNull().default(0),
   settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -124,3 +132,5 @@ export const authenticators = pgTable(
 export type Role = (typeof roleEnum.enumValues)[number];
 export type User = typeof users.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
+export type Plan = (typeof planEnum.enumValues)[number];
+export type TenantStatus = (typeof statusEnum.enumValues)[number];

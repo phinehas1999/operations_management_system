@@ -8,6 +8,13 @@
       "when": 1772263248977,
       "tag": "0000_keen_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772301063761,
+      "tag": "0001_wandering_namorita",
+      "breakpoints": true
     }
   ]
 }
