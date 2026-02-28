@@ -2,30 +2,69 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CardFooter } from "@/components/ui/card";
 import AuthLayout from "@/components/auth-layout";
+import { toast } from "sonner";
 
-export default function Page() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
-      // Replace with real auth call
-      await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
       });
+
+      if (res?.error) {
+        toast.error("Invalid email or password");
+        setError("Invalid credentials");
+        return;
+      }
+
+      toast.success("Signed in — redirecting...");
+      // short delay so the toast is visible
+      await new Promise((r) => setTimeout(r, 600));
+
+      // Fetch session to get role and redirect appropriately
+      const sessionRes = await fetch("/api/auth/session");
+      const session = sessionRes.ok ? await sessionRes.json() : null;
+      const role = session?.user?.role as
+        | "SUPERADMIN"
+        | "ADMIN"
+        | "MANAGER"
+        | "STAFF"
+        | undefined;
+      const isSuperAdmin = Boolean(session?.user?.isSuperAdmin);
+
+      const target = isSuperAdmin
+        ? "/superadmin"
+        : role === "ADMIN"
+          ? "/admin"
+          : role === "MANAGER"
+            ? "/manager"
+            : role === "STAFF"
+              ? "/staff"
+              : "/";
+
+      router.push(target);
     } catch (err) {
       console.error(err);
+      setError("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -55,6 +94,8 @@ export default function Page() {
             required
           />
         </div>
+
+        {error && <div className="text-sm text-destructive">{error}</div>}
 
         <CardFooter className="flex items-center justify-between px-0">
           <Button type="submit" disabled={loading}>

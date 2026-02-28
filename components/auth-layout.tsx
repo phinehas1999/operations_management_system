@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useEffect } from "react";
+import { Toaster } from "@/components/ui/sonner";
 import {
   Card,
   CardHeader,
@@ -46,6 +47,7 @@ export default function AuthLayout({ title, description, children }: Props) {
 
           <CardContent>{children}</CardContent>
         </Card>
+        <Toaster />
       </div>
     </div>
   );

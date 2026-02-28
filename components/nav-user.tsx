@@ -1,19 +1,17 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,27 +20,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavUser({
   user,
 }: {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
+    name: string;
+    email: string;
+    avatar: string;
+  };
 }) {
-  const { isMobile } = useSidebar()
-  const [mounted, setMounted] = React.useState(false)
+  const { isMobile } = useSidebar();
+  const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => setMounted(true), [])
+  React.useEffect(() => setMounted(true), []);
 
   return (
     <SidebarMenu>
@@ -103,7 +101,18 @@ export function NavUser({
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={async (e) => {
+                  // prevent the default focus handling from interfering
+                  try {
+                    await signOut({ callbackUrl: "/auth/login" });
+                    toast.success("Signed out");
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Failed to sign out");
+                  }
+                }}
+              >
                 <IconLogout />
                 Log out
               </DropdownMenuItem>
@@ -130,5 +139,5 @@ export function NavUser({
         )}
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }
