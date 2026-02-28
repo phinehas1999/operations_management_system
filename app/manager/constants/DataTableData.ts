@@ -1,0 +1,58 @@
+const data = [
+  {
+    id: 1,
+    header: "Task: Safety Inspection",
+    type: "Task",
+    status: "In Progress",
+    target: "6",
+    limit: "12",
+    reviewer: "Manager",
+  },
+  {
+    id: 2,
+    header: "Asset: Pallet Jack Check",
+    type: "Asset",
+    status: "Done",
+    target: "0",
+    limit: "2",
+    reviewer: "Ops Lead",
+  },
+  {
+    id: 3,
+    header: "Report: Weekly Ops Summary",
+    type: "Report",
+    status: "Pending",
+    target: "Week 8",
+    limit: "Week 9",
+    reviewer: "Manager",
+  },
+  {
+    id: 4,
+    header: "Team: Shift A Coverage",
+    type: "Team",
+    status: "Active",
+    target: "10",
+    limit: "12",
+    reviewer: "Manager",
+  },
+  {
+    id: 5,
+    header: "Task: Inventory Count",
+    type: "Task",
+    status: "In Progress",
+    target: "Weekly",
+    limit: "Monthly",
+    reviewer: "Inventory",
+  },
+  {
+    id: 6,
+    header: "Asset: PPE Restock",
+    type: "Asset",
+    status: "Pending",
+    target: "40",
+    limit: "120",
+    reviewer: "Procurement",
+  },
+];
+
+export default data;

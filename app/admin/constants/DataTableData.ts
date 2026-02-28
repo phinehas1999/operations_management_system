@@ -1,0 +1,58 @@
+const data = [
+  {
+    id: 1,
+    header: "Task: Monthly Safety Audit",
+    type: "Task",
+    status: "In Progress",
+    target: "10",
+    limit: "20",
+    reviewer: "Admin",
+  },
+  {
+    id: 2,
+    header: "Asset: Forklift Maintenance",
+    type: "Asset",
+    status: "Done",
+    target: "0",
+    limit: "3",
+    reviewer: "Ops Lead",
+  },
+  {
+    id: 3,
+    header: "Report: Staff Performance",
+    type: "Report",
+    status: "Pending",
+    target: "Q1",
+    limit: "Q2",
+    reviewer: "Admin",
+  },
+  {
+    id: 4,
+    header: "Team: Warehouse Shift A",
+    type: "Team",
+    status: "Active",
+    target: "12",
+    limit: "20",
+    reviewer: "HR",
+  },
+  {
+    id: 5,
+    header: "Task: Inventory Cycle Count",
+    type: "Task",
+    status: "In Progress",
+    target: "Weekly",
+    limit: "Monthly",
+    reviewer: "Inventory",
+  },
+  {
+    id: 6,
+    header: "Asset: PPE Restock",
+    type: "Asset",
+    status: "Pending",
+    target: "50",
+    limit: "200",
+    reviewer: "Procurement",
+  },
+];
+
+export default data;

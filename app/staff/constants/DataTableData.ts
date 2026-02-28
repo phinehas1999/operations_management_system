@@ -1,0 +1,58 @@
+const data = [
+  {
+    id: 1,
+    header: "Task: Equipment check",
+    type: "Task",
+    status: "In Progress",
+    target: "3",
+    limit: "8",
+    reviewer: "Team Lead",
+  },
+  {
+    id: 2,
+    header: "Asset: Gloves restock",
+    type: "Asset",
+    status: "Pending",
+    target: "12",
+    limit: "30",
+    reviewer: "Inventory",
+  },
+  {
+    id: 3,
+    header: "Notification: Deadline reminder",
+    type: "Alert",
+    status: "Done",
+    target: "Today",
+    limit: "End of shift",
+    reviewer: "System",
+  },
+  {
+    id: 4,
+    header: "Task: Dock cleanup",
+    type: "Task",
+    status: "In Progress",
+    target: "2",
+    limit: "4",
+    reviewer: "Team Lead",
+  },
+  {
+    id: 5,
+    header: "Asset: Pallet jack check",
+    type: "Asset",
+    status: "Done",
+    target: "1",
+    limit: "3",
+    reviewer: "Maintenance",
+  },
+  {
+    id: 6,
+    header: "Task: Inventory scan",
+    type: "Task",
+    status: "Pending",
+    target: "Weekly",
+    limit: "Monthly",
+    reviewer: "Supervisor",
+  },
+];
+
+export default data;
