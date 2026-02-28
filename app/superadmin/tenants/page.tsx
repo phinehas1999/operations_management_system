@@ -14,6 +14,18 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectTrigger,
@@ -21,6 +33,19 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  IconDotsVertical,
+  IconTrash,
+  IconEdit,
+  IconUserOff,
+} from "@tabler/icons-react";
 
 // Fetch tenants from backend API instead of local mock data
 import siteHeaderData from "../constants/siteheaderdata";
@@ -36,6 +61,20 @@ export default function Page() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [processingId, setProcessingId] = React.useState<string | null>(null);
+  const [creating, setCreating] = React.useState(false);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  // form fields for modal
+  const [nameField, setNameField] = React.useState("");
+  const [slugField, setSlugField] = React.useState("");
+  const [slugEditable, setSlugEditable] = React.useState(false);
+  const [planField, setPlanField] = React.useState("Pro");
+  const [seatsField, setSeatsField] = React.useState<number>(1);
+  const [adminEmailField, setAdminEmailField] = React.useState("");
+  const [monthlyRevenueField, setMonthlyRevenueField] =
+    React.useState<number>(0);
 
   const plans = React.useMemo(() => {
     return Array.from(new Set(tenants.map((t) => t.plan))).sort();
@@ -174,6 +213,39 @@ export default function Page() {
     }
   }
 
+  function handleEditTenant(t: any) {
+    setEditingId(t.id);
+    setNameField(t.name || "");
+    setSlugField(t.slug || "");
+    setSlugEditable(false);
+    setPlanField(t.plan || "Pro");
+    setSeatsField(Number(t.seats || 1));
+    setAdminEmailField(t.adminEmail || "");
+    setMonthlyRevenueField(Number(t.monthlyRevenue || 0));
+    setEditOpen(true);
+  }
+
+  async function handleDeleteTenant(id: string) {
+    if (!window.confirm("Delete tenant? This cannot be undone.")) return;
+    setProcessingId(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/superadmin/tenants", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || "Delete failed");
+      setTenants((p) => p.filter((x) => x.id !== id));
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message ?? "Delete failed");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   return (
     <SidebarProvider
       style={
@@ -198,9 +270,330 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Tenant
-                    </Button>
+                    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="default">
+                          New Tenant
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Create tenant</DialogTitle>
+                          <DialogDescription>
+                            Provide tenant details to create a new account.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid grid-cols-1 gap-4 py-4 md:grid-cols-2 md:gap-6">
+                          <div className="md:col-span-2">
+                            <Label>Company name</Label>
+                            <Input
+                              value={nameField}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setNameField(v);
+                                // auto-generate slug only when not manually edited
+                                if (!slugEditable) {
+                                  const slugDefault = v
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9]+/g, "-")
+                                    .replace(/(^-|-$)/g, "");
+                                  setSlugField(slugDefault);
+                                }
+                              }}
+                              placeholder="Acme Corp"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Slug</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={slugField}
+                                onChange={(e) => setSlugField(e.target.value)}
+                                readOnly={!slugEditable}
+                                className={slugEditable ? "" : "opacity-80"}
+                                placeholder="acme-corp"
+                              />
+                              <Button
+                                size="sm"
+                                variant={
+                                  slugEditable ? "destructive" : "outline"
+                                }
+                                onClick={() => setSlugEditable((s) => !s)}
+                              >
+                                {slugEditable ? "Lock" : "Edit"}
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Auto-generated from name; click Edit to change.
+                            </p>
+                          </div>
+
+                          <div>
+                            <Label>Plan</Label>
+                            <Select
+                              value={planField}
+                              onValueChange={(v) => setPlanField(v)}
+                            >
+                              <SelectTrigger size="sm">
+                                <SelectValue>{planField}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Trial">Trial</SelectItem>
+                                <SelectItem value="Basic">Basic</SelectItem>
+                                <SelectItem value="Pro">Pro</SelectItem>
+                                <SelectItem value="Enterprise">
+                                  Enterprise
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Seats</Label>
+                            <Input
+                              type="number"
+                              value={String(seatsField)}
+                              onChange={(e) =>
+                                setSeatsField(Number(e.target.value || 0))
+                              }
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <Label>Admin email</Label>
+                            <Input
+                              value={adminEmailField}
+                              onChange={(e) =>
+                                setAdminEmailField(e.target.value)
+                              }
+                              placeholder="admin@company.com"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Monthly revenue</Label>
+                            <Input
+                              type="number"
+                              value={String(monthlyRevenueField)}
+                              onChange={(e) =>
+                                setMonthlyRevenueField(
+                                  Number(e.target.value || 0),
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setCreateOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </DialogClose>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (creating) return;
+                              setCreating(true);
+                              setError(null);
+                              try {
+                                const res = await fetch(
+                                  "/api/superadmin/tenants",
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      name: nameField,
+                                      slug: slugField,
+                                      plan: planField,
+                                      seats: Number(seatsField || 1),
+                                      adminEmail: adminEmailField || null,
+                                      monthlyRevenue: Number(
+                                        monthlyRevenueField || 0,
+                                      ),
+                                    }),
+                                  },
+                                );
+                                const body = await res.json();
+                                if (!res.ok)
+                                  throw new Error(
+                                    body?.error || "Create failed",
+                                  );
+                                const tenant = body?.tenant;
+                                if (tenant) setTenants((p) => [tenant, ...p]);
+                                setCreateOpen(false);
+                                // reset fields
+                                setNameField("");
+                                setSlugField("");
+                                setPlanField("Pro");
+                                setSeatsField(1);
+                                setAdminEmailField("");
+                                setMonthlyRevenueField(0);
+                              } catch (err: any) {
+                                console.error(err);
+                                setError(err?.message ?? "Create failed");
+                              } finally {
+                                setCreating(false);
+                              }
+                            }}
+                          >
+                            {creating ? "Creating..." : "Create"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit tenant</DialogTitle>
+                          <DialogDescription>
+                            Update tenant details and save.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid grid-cols-1 gap-4 py-4 md:grid-cols-2 md:gap-6">
+                          <div className="md:col-span-2">
+                            <Label>Company name</Label>
+                            <Input
+                              value={nameField}
+                              onChange={(e) => setNameField(e.target.value)}
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Slug</Label>
+                            <Input
+                              value={slugField}
+                              onChange={(e) => setSlugField(e.target.value)}
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Plan</Label>
+                            <Select
+                              value={planField}
+                              onValueChange={(v) => setPlanField(v)}
+                            >
+                              <SelectTrigger size="sm">
+                                <SelectValue>{planField}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Trial">Trial</SelectItem>
+                                <SelectItem value="Basic">Basic</SelectItem>
+                                <SelectItem value="Pro">Pro</SelectItem>
+                                <SelectItem value="Enterprise">
+                                  Enterprise
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label>Seats</Label>
+                            <Input
+                              type="number"
+                              value={String(seatsField)}
+                              onChange={(e) =>
+                                setSeatsField(Number(e.target.value || 0))
+                              }
+                            />
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <Label>Admin email</Label>
+                            <Input
+                              value={adminEmailField}
+                              onChange={(e) =>
+                                setAdminEmailField(e.target.value)
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Monthly revenue</Label>
+                            <Input
+                              type="number"
+                              value={String(monthlyRevenueField)}
+                              onChange={(e) =>
+                                setMonthlyRevenueField(
+                                  Number(e.target.value || 0),
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                          </DialogClose>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!editingId) return;
+                              setCreating(true);
+                              setError(null);
+                              try {
+                                const res = await fetch(
+                                  "/api/superadmin/tenants",
+                                  {
+                                    method: "PATCH",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                      id: editingId,
+                                      name: nameField,
+                                      slug: slugField,
+                                      plan: planField,
+                                      seats: Number(seatsField || 1),
+                                      adminEmail: adminEmailField || null,
+                                      monthlyRevenue: Number(
+                                        monthlyRevenueField || 0,
+                                      ),
+                                    }),
+                                  },
+                                );
+                                const body = await res.json();
+                                if (!res.ok)
+                                  throw new Error(
+                                    body?.error || "Update failed",
+                                  );
+                                const updated = body?.updated;
+                                if (updated)
+                                  setTenants((p) =>
+                                    p.map((x) =>
+                                      x.id === updated.id ? updated : x,
+                                    ),
+                                  );
+                                setEditOpen(false);
+                              } catch (err: any) {
+                                console.error(err);
+                                setError(err?.message ?? "Update failed");
+                              } finally {
+                                setCreating(false);
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                     <Button
                       size="sm"
                       variant="outline"
@@ -327,23 +720,42 @@ export default function Page() {
                           {formatDate(t.createdAt)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant={
-                                t.status === "Active"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              onClick={() => toggleTenantStatus(t.id, t.status)}
-                              disabled={processingId === t.id}
-                            >
-                              {processingId === t.id
-                                ? "..."
-                                : t.status === "Active"
-                                  ? "Suspend"
-                                  : "Activate"}
-                            </Button>
+                          <div className="flex items-center justify-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                >
+                                  <IconDotsVertical />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    toggleTenantStatus(t.id, t.status)
+                                  }
+                                >
+                                  {t.status === "Active"
+                                    ? "Suspend"
+                                    : "Activate"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() => handleEditTenant(t)}
+                                >
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={() => handleDeleteTenant(t.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
