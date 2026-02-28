@@ -1,7 +1,7 @@
 const data = [
   {
     id: 1,
-    header: "Task: Safety Inspection",
+    header: "Task: Safety Inspection (Team)",
     type: "Task",
     status: "In Progress",
     target: "6",
@@ -10,7 +10,7 @@ const data = [
   },
   {
     id: 2,
-    header: "Asset: Pallet Jack Check",
+    header: "Asset: Pallet Jack Check (Team)",
     type: "Asset",
     status: "Done",
     target: "0",
@@ -19,7 +19,7 @@ const data = [
   },
   {
     id: 3,
-    header: "Report: Weekly Ops Summary",
+    header: "Report: Team Weekly Summary",
     type: "Report",
     status: "Pending",
     target: "Week 8",
@@ -37,7 +37,7 @@ const data = [
   },
   {
     id: 5,
-    header: "Task: Inventory Count",
+    header: "Task: Inventory Count (Team)",
     type: "Task",
     status: "In Progress",
     target: "Weekly",
@@ -46,7 +46,7 @@ const data = [
   },
   {
     id: 6,
-    header: "Asset: PPE Restock",
+    header: "Asset: PPE Restock (Team)",
     type: "Asset",
     status: "Pending",
     target: "40",

@@ -110,7 +110,7 @@ Conventions
 
 ### assets
 
-| column            | type        | constraints                | notes            |
+| column            | typeV       | constraints                | notes            |
 | ----------------- | ----------- | -------------------------- | ---------------- |
 | id                | uuid        | pk                         |                  |
 | name              | text        | not null                   |                  |
@@ -170,12 +170,12 @@ Build
 - Middleware for role checking and role-based redirects to /admin, /manager, /staff, /superadmin
 - Tenant discovery: subdomain (tenant.app.com) or path (/t/tenant); middleware loads tenant by slug and sets tenantId in request context
 
-Role Access Rules
+Role Access Rules (aligned to current UI)
 
-- SUPERADMIN (platform): full platform access; manage tenants, billing, and global settings
-- ADMIN (tenant): full access within tenant
-- MANAGER (tenant): manage tasks, view assets, assign staff (tenant-scoped)
-- STAFF (tenant): view assigned tasks, update task status, view assets (read only)
+- SUPERADMIN (platform): platform-wide controls; tenants registry & provisioning, billing & plans, platform settings, audit/logs, support/impersonation, platform docs/search/help.
+- ADMIN (tenant): tenant-wide controls; dashboard, users & roles, teams, all tasks, all assets, reports, tenant settings, search/help.
+- MANAGER (tenant): team-scoped controls; dashboard, team tasks, team assets, reports slice, team roster/assignments, search/help.
+- STAFF (tenant): individual scope; dashboard, my tasks, task status updates, read-only assets, notifications, search/help.
 
 Implementation Notes
 
@@ -190,37 +190,20 @@ Implementation Notes
 
 ---
 
-# 4️⃣ Dashboard Structure (Per Role)
+Dashboard & Navigation (Per Role) — matches current pages
 
 - Admin (/admin)
-  - Dashboard (global KPIs)
-  - Users & Roles
-  - Teams
-  - Tasks (all)
-  - Assets (all)
-  - Reports (full)
-  - Settings
+  - Dashboard KPIs; search/help shortcuts
+  - Users & Roles; Teams; all Tasks; all Assets; Reports; Settings
 
 - Superadmin (/superadmin)
-  - Platform Dashboard (tenant KPIs, revenue, health)
-  - Tenants (provision, suspend, delete)
-  - Billing & Plans
-  - Platform Settings (email, domains, feature flags)
-  - Audit & Logs
-  - Support tooling (impersonate tenant admin, view incidents)
+  - Platform Dashboard; Tenants registry & provisioning queue; Billing & Plans; Platform Settings; Audit & Logs; Support (incidents, impersonation); Platform Docs; Search/Help
 
 - Manager (/manager)
-  - Dashboard (team KPIs)
-  - Tasks (team scope)
-  - Assets (team scope)
-  - Reports (team slice)
-  - Team (manage assignments)
+  - Dashboard KPIs; Tasks (team scope); Assets (team scope); Reports (team slice); Team roster/assignments; Search/Help
 
 - Staff (/staff)
-  - Dashboard (my tasks KPIs)
-  - My Tasks
-  - Assets (read-only)
-  - Notifications
+  - Dashboard KPIs; My Tasks; task status updates; Assets (read-only); Notifications; Search/Help
 
 ---
 
