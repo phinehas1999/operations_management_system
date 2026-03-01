@@ -50,6 +50,8 @@ import {
   FileText,
   MoreHorizontal,
   DollarSign,
+  ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -102,6 +104,19 @@ function formatDate(dateStr?: string | null) {
   });
 }
 
+function monthKey(dateInput: string | Date) {
+  const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(key: string) {
+  if (!key) return "";
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(y, (m || 1) - 1, 1);
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
 export default function Page() {
   const [query, setQuery] = React.useState("");
   const [invoiceStatus, setInvoiceStatus] = React.useState("all");
@@ -112,11 +127,57 @@ export default function Page() {
   const [updatingInvoiceId, setUpdatingInvoiceId] = React.useState<
     string | null
   >(null);
+  const [selectedMonth, setSelectedMonth] = React.useState(() =>
+    monthKey(new Date()),
+  );
+  const mountedRef = React.useRef(false);
+
+  const fetchBillingData = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [plansRes, invoicesRes, tenantsRes] = await Promise.all([
+        fetch("/api/superadmin/plans"),
+        fetch("/api/superadmin/invoices"),
+        fetch("/api/superadmin/tenants"),
+      ]);
+
+      if (!plansRes.ok || !invoicesRes.ok || !tenantsRes.ok) {
+        throw new Error("Billing API returned an error");
+      }
+
+      const [plansJson, invoicesJson, tenantsJson] = await Promise.all([
+        plansRes.json(),
+        invoicesRes.json(),
+        tenantsRes.json(),
+      ]);
+
+      if (!mountedRef.current) return;
+      setPlans(plansJson || []);
+      setInvoices(invoicesJson || []);
+      setTenants(tenantsJson || []);
+    } catch (err) {
+      console.error("Load billing data failed", err);
+      if (mountedRef.current)
+        setError("Unable to load billing data. Please try again.");
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [creating, setCreating] = React.useState(false);
   const [createTenantId, setCreateTenantId] = React.useState<string | null>(
     null,
   );
+  const [tenants, setTenants] = React.useState<
+    {
+      id: string;
+      name: string;
+      planId?: string | null;
+      planName?: string | null;
+    }[]
+  >([]);
+  const [tenantQuery, setTenantQuery] = React.useState("");
   const [createPlanId, setCreatePlanId] = React.useState<string | null>(null);
   const [createAmount, setCreateAmount] = React.useState<number | "">("");
   const [createCurrency, setCreateCurrency] = React.useState("USD");
@@ -235,42 +296,12 @@ export default function Page() {
   }
 
   React.useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [plansRes, invoicesRes] = await Promise.all([
-          fetch("/api/superadmin/plans"),
-          fetch("/api/superadmin/invoices"),
-        ]);
-
-        if (!plansRes.ok || !invoicesRes.ok) {
-          throw new Error("Billing API returned an error");
-        }
-
-        const [plansJson, invoicesJson] = await Promise.all([
-          plansRes.json(),
-          invoicesRes.json(),
-        ]);
-
-        if (mounted) {
-          setPlans(plansJson || []);
-          setInvoices(invoicesJson || []);
-        }
-      } catch (err) {
-        console.error("Load billing data failed", err);
-        if (mounted) setError("Unable to load billing data. Please try again.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
+    mountedRef.current = true;
+    fetchBillingData();
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, []);
+  }, [fetchBillingData]);
 
   const planFiltered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -297,20 +328,41 @@ export default function Page() {
     });
   }, [invoices, invoiceStatus, query]);
 
+  const monthOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    invoices.forEach((i) => {
+      if (i.issuedAt) {
+        const key = monthKey(i.issuedAt);
+        if (key) set.add(key);
+      }
+    });
+    set.add(monthKey(new Date()));
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [invoices]);
+
+  const invoiceMonthFiltered = React.useMemo(() => {
+    return invoiceFiltered.filter((i) => {
+      if (selectedMonth === "all") return true;
+      if (!selectedMonth) return true;
+      if (!i.issuedAt) return false;
+      return monthKey(i.issuedAt) === selectedMonth;
+    });
+  }, [invoiceFiltered, selectedMonth]);
+
   // Reset to first page when filters or query change
   React.useEffect(() => {
     setInvoicePage(1);
-  }, [invoiceStatus, query]);
+  }, [invoiceStatus, query, selectedMonth]);
 
   // newest-first order for invoices
   const invoiceSorted = React.useMemo(() => {
-    return [...invoiceFiltered].sort((a, b) => {
+    return [...invoiceMonthFiltered].sort((a, b) => {
       const ta = a.issuedAt ? new Date(a.issuedAt).getTime() : 0;
       const tb = b.issuedAt ? new Date(b.issuedAt).getTime() : 0;
       if (tb !== ta) return tb - ta;
       return b.invoiceNumber.localeCompare(a.invoiceNumber);
     });
-  }, [invoiceFiltered]);
+  }, [invoiceMonthFiltered]);
 
   const invoiceTotal = invoiceSorted.length;
   const invoiceTotalPages = Math.max(
@@ -322,27 +374,35 @@ export default function Page() {
     return invoiceSorted.slice(start, start + INVOICE_PAGE_SIZE);
   }, [invoiceSorted, invoicePage]);
 
+  const tenantFiltered = React.useMemo(() => {
+    const q = tenantQuery.trim().toLowerCase();
+    return tenants.filter((t) => {
+      if (!q) return true;
+      return (t.name || "").toLowerCase().includes(q);
+    });
+  }, [tenants, tenantQuery]);
+
   const totals = React.useMemo(() => {
-    const totalCents = invoiceFiltered.reduce(
+    const totalCents = invoiceMonthFiltered.reduce(
       (sum, i) => sum + Number(i.amountCents || 0),
       0,
     );
-    const paidCents = invoiceFiltered
+    const paidCents = invoiceMonthFiltered
       .filter((i) => i.status === "Paid")
       .reduce((sum, i) => sum + Number(i.amountCents || 0), 0);
-    const outstandingCents = invoiceFiltered
+    const outstandingCents = invoiceMonthFiltered
       .filter((i) => i.status !== "Paid")
       .reduce((sum, i) => sum + Number(i.amountCents || 0), 0);
 
     return {
-      count: invoiceFiltered.length,
+      count: invoiceMonthFiltered.length,
       paidCents,
       outstandingCents,
-      avgCents: invoiceFiltered.length
-        ? Math.round(totalCents / invoiceFiltered.length)
+      avgCents: invoiceMonthFiltered.length
+        ? Math.round(totalCents / invoiceMonthFiltered.length)
         : 0,
     };
-  }, [invoiceFiltered]);
+  }, [invoiceMonthFiltered]);
 
   function exportCsv(rows: any[], name = "export.csv") {
     if (!rows.length) return;
@@ -478,57 +538,74 @@ export default function Page() {
               >
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Tenant</label>
-                  <Select
-                    value={createTenantId ?? ""}
-                    onValueChange={(v) => setCreateTenantId(v || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select tenant" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from(
-                        new Map(
-                          invoices
-                            .filter((x) => x.tenantId)
-                            .map((x) => [
-                              x.tenantId,
-                              x.tenantName || x.tenantId,
-                            ]),
-                        ),
-                      ).map(([id, name]) => (
-                        <SelectItem key={id} value={id}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                      >
+                        {createTenantId
+                          ? tenants.find((t) => t.id === createTenantId)?.name
+                          : "Select tenant"}
+                        <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-72 p-0" align="start">
+                      <div className="p-2 border-b">
+                        <Input
+                          placeholder="Search tenants..."
+                          value={tenantQuery}
+                          onChange={(e) => setTenantQuery(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {tenantFiltered.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            onSelect={() => {
+                              const id = t.id;
+                              setCreateTenantId(id);
+                              const planId = t.planId ?? null;
+                              setCreatePlanId(planId);
+                              const plan =
+                                plans.find((p) => p.id === planId) ?? null;
+                              if (plan) setCreateAmount(plan.priceMonthlyCents);
+                              else setCreateAmount("");
+                              // Reset query for future use? Maybe not needed if unmounting
+                            }}
+                          >
+                            {t.name}
+                          </DropdownMenuItem>
+                        ))}
+                        {tenantFiltered.length === 0 && (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            No tenants found.
+                          </div>
+                        )}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
                   <label className="text-sm font-medium">Plan</label>
-                  <Select
-                    value={createPlanId ?? ""}
-                    onValueChange={(v) => {
-                      setCreatePlanId(v || null);
-                      const plan = plans.find((p) => p.id === v) ?? null;
-                      if (plan) setCreateAmount(plan.priceMonthlyCents);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plans.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    value={
+                      plans.find((p) => p.id === createPlanId)?.name ?? "—"
+                    }
+                    readOnly
+                    disabled
+                  />
 
                   <label className="text-sm font-medium">Amount (USD)</label>
                   <Input
-                    type="number"
-                    value={createAmount === "" ? "" : String(createAmount)}
-                    onChange={(e) => setCreateAmount(Number(e.target.value))}
+                    value={
+                      createAmount === ""
+                        ? ""
+                        : formatMoney(Number(createAmount))
+                    }
+                    readOnly
+                    disabled
                   />
 
                   <div className="grid grid-cols-2 gap-2">
@@ -863,6 +940,22 @@ export default function Page() {
             </div>
             <div className="flex items-center gap-2">
               <Select
+                value={selectedMonth}
+                onValueChange={(v) => setSelectedMonth(v)}
+              >
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Show all</SelectItem>
+                  {monthOptions.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {monthLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
                 value={invoiceStatus}
                 onValueChange={(v) => setInvoiceStatus(v)}
               >
@@ -879,7 +972,22 @@ export default function Page() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => exportCsv(invoiceFiltered, "invoices.csv")}
+                onClick={() => fetchBillingData()}
+                title="Refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() =>
+                  exportCsv(
+                    invoiceMonthFiltered,
+                    selectedMonth && selectedMonth !== "all"
+                      ? `invoices-${selectedMonth}.csv`
+                      : "invoices.csv",
+                  )
+                }
                 title="Export Invoices"
               >
                 <Download className="h-4 w-4" />

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogTrigger,
@@ -78,6 +79,7 @@ export default function Page() {
   const [adminEmailField, setAdminEmailField] = React.useState("");
   const [monthlyRevenueField, setMonthlyRevenueField] =
     React.useState<number>(0);
+  const [statusField, setStatusField] = React.useState<string>("Active");
 
   const plans = React.useMemo(() => {
     return Array.from(
@@ -370,6 +372,24 @@ export default function Page() {
                           </div>
 
                           <div>
+                            <Label>Status</Label>
+                            <Select
+                              value={statusField}
+                              onValueChange={(v) => setStatusField(v)}
+                            >
+                              <SelectTrigger size="sm">
+                                <SelectValue>{statusField}</SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Suspended">
+                                  Suspended
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
                             <Label>Seats</Label>
                             <Input
                               type="number"
@@ -433,6 +453,7 @@ export default function Page() {
                                       name: nameField,
                                       slug: slugField,
                                       planId: planField || null,
+                                      status: statusField,
                                       seats: Number(seatsField || 1),
                                       adminEmail: adminEmailField || null,
                                       monthlyRevenue: Number(
@@ -447,7 +468,16 @@ export default function Page() {
                                     body?.error || "Create failed",
                                   );
                                 const tenant = body?.tenant;
-                                if (tenant) setTenants((p) => [tenant, ...p]);
+                                if (tenant) {
+                                  // Attach planName for UI (POST returns tenant without joined planName)
+                                  if (tenant.planId) {
+                                    const plan = planOptions.find(
+                                      (pl) => pl.id === tenant.planId,
+                                    );
+                                    tenant.planName = plan?.name ?? null;
+                                  }
+                                  setTenants((p) => [tenant, ...p]);
+                                }
                                 setCreateOpen(false);
                                 // reset fields
                                 setNameField("");
@@ -592,12 +622,19 @@ export default function Page() {
                                     body?.error || "Update failed",
                                   );
                                 const updated = body?.updated;
-                                if (updated)
+                                if (updated) {
+                                  if (updated.planId) {
+                                    const plan = planOptions.find(
+                                      (pl) => pl.id === updated.planId,
+                                    );
+                                    updated.planName = plan?.name ?? null;
+                                  }
                                   setTenants((p) =>
                                     p.map((x) =>
                                       x.id === updated.id ? updated : x,
                                     ),
                                   );
+                                }
                                 setEditOpen(false);
                               } catch (err: any) {
                                 console.error(err);
@@ -632,8 +669,8 @@ export default function Page() {
                     />
                   </div>
                   {loading && (
-                    <div className="text-sm text-muted-foreground ml-4">
-                      Loading...
+                    <div className="ml-4">
+                      <Skeleton className="h-4 w-32" />
                     </div>
                   )}
                   {error && (
@@ -689,97 +726,110 @@ export default function Page() {
                   </div>
                 </div>
 
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Plan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Seats</TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead>Revenue</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{t.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {t.slug}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{t.planName || "Unassigned"}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              t.status === "Active"
-                                ? "default"
-                                : t.status === "Trial"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                          >
-                            {t.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{t.seats}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {t.adminEmail}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatCurrency(t.monthlyRevenue)}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(t.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-8"
-                                >
-                                  <IconDotsVertical />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-40">
-                                <DropdownMenuItem
-                                  onSelect={() =>
-                                    toggleTenantStatus(t.id, t.status)
-                                  }
-                                >
-                                  {t.status === "Active"
-                                    ? "Suspend"
-                                    : "Activate"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onSelect={() => handleEditTenant(t)}
-                                >
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onSelect={() => handleDeleteTenant(t.id)}
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
+                {loading ? (
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Seats</TableHead>
+                        <TableHead>Admin</TableHead>
+                        <TableHead>Revenue</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{t.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {t.slug}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{t.planName || "Unassigned"}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                t.status === "Active"
+                                  ? "default"
+                                  : t.status === "Trial"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
+                              {t.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{t.seats}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {t.adminEmail}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatCurrency(t.monthlyRevenue)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(t.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-8"
+                                  >
+                                    <IconDotsVertical />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-40"
+                                >
+                                  <DropdownMenuItem
+                                    onSelect={() =>
+                                      toggleTenantStatus(t.id, t.status)
+                                    }
+                                  >
+                                    {t.status === "Active"
+                                      ? "Suspend"
+                                      : "Activate"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onSelect={() => handleEditTenant(t)}
+                                  >
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() => handleDeleteTenant(t.id)}
+                                  >
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </div>
           </div>
