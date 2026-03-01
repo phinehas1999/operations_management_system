@@ -31,6 +31,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Plus,
   Search,
   Download,
@@ -104,6 +112,35 @@ export default function Page() {
   const [updatingInvoiceId, setUpdatingInvoiceId] = React.useState<
     string | null
   >(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [creating, setCreating] = React.useState(false);
+  const [createTenantId, setCreateTenantId] = React.useState<string | null>(
+    null,
+  );
+  const [createPlanId, setCreatePlanId] = React.useState<string | null>(null);
+  const [createAmount, setCreateAmount] = React.useState<number | "">("");
+  const [createCurrency, setCreateCurrency] = React.useState("USD");
+  const [createStatus, setCreateStatus] = React.useState<
+    "Paid" | "Due" | "Overdue"
+  >("Due");
+  const [createIssuedAt, setCreateIssuedAt] = React.useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [createDueAt, setCreateDueAt] = React.useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
+  // Create Plan dialog state
+  const [planOpen, setPlanOpen] = React.useState(false);
+  const [planCreating, setPlanCreating] = React.useState(false);
+  const [planEditingId, setPlanEditingId] = React.useState<string | null>(null);
+  const [planName, setPlanName] = React.useState("");
+  const [planSlug, setPlanSlug] = React.useState("");
+  const [planMonthly, setPlanMonthly] = React.useState<number | "">("");
+  const [planYearly, setPlanYearly] = React.useState<number | "">("");
+  const [planSeats, setPlanSeats] = React.useState<number | "">("");
+  const [planFeatures, setPlanFeatures] = React.useState("");
   const [invoicePage, setInvoicePage] = React.useState(1);
   const INVOICE_PAGE_SIZE = 10;
 
@@ -169,6 +206,28 @@ export default function Page() {
     } catch (err) {
       console.error("Update invoice plan failed", err);
       setError("Unable to update invoice plan");
+      setTimeout(() => setError(null), 4000);
+    } finally {
+      setUpdatingInvoiceId(null);
+    }
+  }
+
+  async function deleteInvoice(id: string) {
+    if (!confirm("Delete this invoice? This action cannot be undone.")) return;
+    setUpdatingInvoiceId(id);
+    try {
+      const res = await fetch("/api/superadmin/invoices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Failed to delete");
+
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+    } catch (err) {
+      console.error("Delete invoice failed", err);
+      setError((err as any)?.message || "Unable to delete invoice");
       setTimeout(() => setError(null), 4000);
     } finally {
       setUpdatingInvoiceId(null);
@@ -328,16 +387,388 @@ export default function Page() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPlanOpen(true)}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 New Plan
               </Button>
-              <Button size="sm" variant="default">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => setCreateOpen(true)}
+              >
                 <FileText className="mr-2 h-4 w-4" />
                 Create Invoice
               </Button>
             </div>
           </div>
+
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Create Invoice</DialogTitle>
+                <DialogDescription>
+                  Create a new invoice for an existing tenant.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setCreating(true);
+                  try {
+                    if (!createTenantId) {
+                      setError(
+                        "Please select a tenant before creating an invoice.",
+                      );
+                      setTimeout(() => setError(null), 4000);
+                      setCreating(false);
+                      return;
+                    }
+
+                    // generate a simple invoice number if backend requires one
+                    const invoiceNumber = `INV-${new Date()
+                      .toISOString()
+                      .replace(/[^0-9]/g, "")
+                      .slice(-8)}-${Math.floor(Math.random() * 900 + 100)}`;
+
+                    const payload: any = {
+                      tenantId: createTenantId,
+                      invoiceNumber,
+                      planId: createPlanId,
+                      amountCents:
+                        typeof createAmount === "number"
+                          ? createAmount
+                          : undefined,
+                      currency: createCurrency,
+                      status: createStatus,
+                      issuedAt: createIssuedAt,
+                      dueAt: createDueAt || null,
+                    };
+
+                    const res = await fetch("/api/superadmin/invoices", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(json?.error || "Failed");
+
+                    const created = json?.invoice || json;
+                    setInvoices((prev) => [created, ...prev]);
+                    setCreateOpen(false);
+                    // reset
+                    setCreateTenantId(null);
+                    setCreatePlanId(null);
+                    setCreateAmount("");
+                    setCreateCurrency("USD");
+                    setCreateStatus("Due");
+                  } catch (err) {
+                    console.error("Create invoice failed", err);
+                    setError(
+                      (err as any)?.message || "Unable to create invoice",
+                    );
+                    setTimeout(() => setError(null), 4000);
+                  } finally {
+                    setCreating(false);
+                  }
+                }}
+              >
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Tenant</label>
+                  <Select
+                    value={createTenantId ?? ""}
+                    onValueChange={(v) => setCreateTenantId(v || null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select tenant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from(
+                        new Map(
+                          invoices
+                            .filter((x) => x.tenantId)
+                            .map((x) => [
+                              x.tenantId,
+                              x.tenantName || x.tenantId,
+                            ]),
+                        ),
+                      ).map(([id, name]) => (
+                        <SelectItem key={id} value={id}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <label className="text-sm font-medium">Plan</label>
+                  <Select
+                    value={createPlanId ?? ""}
+                    onValueChange={(v) => {
+                      setCreatePlanId(v || null);
+                      const plan = plans.find((p) => p.id === v) ?? null;
+                      if (plan) setCreateAmount(plan.priceMonthlyCents);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <label className="text-sm font-medium">Amount (USD)</label>
+                  <Input
+                    type="number"
+                    value={createAmount === "" ? "" : String(createAmount)}
+                    onChange={(e) => setCreateAmount(Number(e.target.value))}
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm font-medium">Issued</label>
+                      <Input
+                        type="date"
+                        value={createIssuedAt}
+                        onChange={(e) => setCreateIssuedAt(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Due</label>
+                      <Input
+                        type="date"
+                        value={createDueAt}
+                        onChange={(e) => setCreateDueAt(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Status</label>
+                    <Select
+                      value={createStatus}
+                      onValueChange={(v) => setCreateStatus(v as any)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Due">Due</SelectItem>
+                        <SelectItem value="Paid">Paid</SelectItem>
+                        <SelectItem value="Overdue">Overdue</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <DialogFooter>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setCreateOpen(false)}
+                        disabled={creating}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={creating}>
+                        {creating ? "Creating..." : "Create Invoice"}
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={planOpen} onOpenChange={setPlanOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>New Plan</DialogTitle>
+                <DialogDescription>
+                  Create a subscription plan (monthly/yearly pricing, seats,
+                  features).
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setPlanCreating(true);
+                  try {
+                    if (!planName.trim()) {
+                      setError("Plan name is required");
+                      setTimeout(() => setError(null), 3000);
+                      setPlanCreating(false);
+                      return;
+                    }
+
+                    const payload: any = {
+                      name: planName.trim(),
+                      slug:
+                        planSlug.trim() ||
+                        planName
+                          .trim()
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")
+                          .replace(/(^-|-$)/g, ""),
+                      priceMonthlyCents:
+                        planMonthly === ""
+                          ? 0
+                          : Math.round(Number(planMonthly) * 100),
+                      priceYearlyCents:
+                        planYearly === ""
+                          ? 0
+                          : Math.round(Number(planYearly) * 100),
+                      seats: planSeats === "" ? null : Number(planSeats),
+                      features: planFeatures
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    };
+
+                    const res = await fetch("/api/superadmin/plans", {
+                      method: planEditingId ? "PATCH" : "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(
+                        planEditingId
+                          ? { id: planEditingId, ...payload }
+                          : payload,
+                      ),
+                    });
+
+                    // Try to parse JSON, but fall back to text if parsing fails
+                    let json: any = null;
+                    try {
+                      json = await res.json();
+                    } catch (parseErr) {
+                      const text = await res.text();
+                      json = { error: text };
+                    }
+
+                    if (!res.ok) {
+                      const serverMsg =
+                        json?.error || json?.message || "Failed to create plan";
+                      console.error("Create plan failed (server):", serverMsg);
+                      setError(String(serverMsg));
+                      setTimeout(() => setError(null), 5000);
+                      setPlanCreating(false);
+                      return;
+                    }
+
+                    const createdOrUpdated = json?.plan || json;
+                    if (planEditingId) {
+                      setPlans((prev) =>
+                        prev.map((pl) =>
+                          pl.id === planEditingId ? createdOrUpdated : pl,
+                        ),
+                      );
+                    } else {
+                      setPlans((prev) => [createdOrUpdated, ...prev]);
+                    }
+                    setPlanOpen(false);
+                    // reset
+                    setPlanEditingId(null);
+                    setPlanName("");
+                    setPlanSlug("");
+                    setPlanMonthly("");
+                    setPlanYearly("");
+                    setPlanSeats("");
+                    setPlanFeatures("");
+                  } catch (err) {
+                    console.error("Create plan failed", err);
+                    setError((err as any)?.message || "Unable to create plan");
+                    setTimeout(() => setError(null), 4000);
+                  } finally {
+                    setPlanCreating(false);
+                  }
+                }}
+              >
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Name</label>
+                  <Input
+                    value={planName}
+                    onChange={(e) => setPlanName(e.target.value)}
+                  />
+
+                  <label className="text-sm font-medium">Slug (optional)</label>
+                  <Input
+                    value={planSlug}
+                    onChange={(e) => setPlanSlug(e.target.value)}
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm font-medium">Monthly ($)</label>
+                      <Input
+                        type="number"
+                        value={planMonthly === "" ? "" : String(planMonthly)}
+                        onChange={(e) =>
+                          setPlanMonthly(
+                            e.target.value === "" ? "" : Number(e.target.value),
+                          )
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Yearly ($)</label>
+                      <Input
+                        type="number"
+                        value={planYearly === "" ? "" : String(planYearly)}
+                        onChange={(e) =>
+                          setPlanYearly(
+                            e.target.value === "" ? "" : Number(e.target.value),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <label className="text-sm font-medium">
+                    Seats (leave empty for unlimited)
+                  </label>
+                  <Input
+                    type="number"
+                    value={planSeats === "" ? "" : String(planSeats)}
+                    onChange={(e) =>
+                      setPlanSeats(
+                        e.target.value === "" ? "" : Number(e.target.value),
+                      )
+                    }
+                  />
+
+                  <label className="text-sm font-medium">
+                    Features (comma separated)
+                  </label>
+                  <Input
+                    value={planFeatures}
+                    onChange={(e) => setPlanFeatures(e.target.value)}
+                  />
+
+                  <DialogFooter>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setPlanOpen(false)}
+                        disabled={planCreating}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={planCreating}>
+                        {planCreating ? "Creating..." : "Create Plan"}
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -570,6 +1001,11 @@ export default function Page() {
                                 >
                                   Mark Overdue
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => deleteInvoice(i.id)}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -672,9 +1108,75 @@ export default function Page() {
                             {p.seats === null ? "Unlimited" : p.seats}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button size="sm" variant="ghost">
-                              Edit
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  aria-label="Plan actions"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    // populate form for editing
+                                    setPlanEditingId(p.id);
+                                    setPlanName(p.name || "");
+                                    setPlanSlug(p.slug || "");
+                                    setPlanMonthly(p.priceMonthlyCents ?? 0);
+                                    setPlanYearly(p.priceYearlyCents ?? 0);
+                                    setPlanSeats(p.seats ?? "");
+                                    setPlanFeatures(
+                                      (p.features || []).join(", "),
+                                    );
+                                    setPlanOpen(true);
+                                  }}
+                                >
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    if (!confirm(`Delete plan "${p.name}"?`))
+                                      return;
+                                    try {
+                                      setPlanCreating(true);
+                                      const res = await fetch(
+                                        "/api/superadmin/plans",
+                                        {
+                                          method: "DELETE",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({ id: p.id }),
+                                        },
+                                      );
+                                      const json = await res.json();
+                                      if (!res.ok)
+                                        throw new Error(
+                                          json?.error ||
+                                            "Failed to delete plan",
+                                        );
+                                      setPlans((prev) =>
+                                        prev.filter((x) => x.id !== p.id),
+                                      );
+                                    } catch (err) {
+                                      console.error("Delete plan failed", err);
+                                      setError(
+                                        (err as any)?.message ||
+                                          "Unable to delete plan",
+                                      );
+                                      setTimeout(() => setError(null), 4000);
+                                    } finally {
+                                      setPlanCreating(false);
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}

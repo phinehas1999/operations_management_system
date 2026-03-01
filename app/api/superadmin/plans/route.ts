@@ -43,11 +43,33 @@ export async function POST(req: Request) {
       );
     }
 
+    // Ensure slug is unique by appending a numeric suffix when necessary
+    const sanitize = (s: string) =>
+      s
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+
+    const baseSlug = sanitize(slug || name);
+    let uniqueSlug = baseSlug;
+    let suffix = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const existing = await db
+        .select()
+        .from(billingPlans)
+        .where(eq(billingPlans.slug, uniqueSlug));
+      if ((existing as any[]).length === 0) break;
+      suffix += 1;
+      uniqueSlug = `${baseSlug}-${suffix}`;
+    }
+
     const [plan] = await db
       .insert(billingPlans)
       .values({
         name,
-        slug,
+        slug: uniqueSlug,
         priceMonthlyCents,
         priceYearlyCents,
         seats: Number.isFinite(seats || undefined) ? seats : null,
@@ -58,10 +80,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, plan });
   } catch (err) {
     console.error("POST /api/superadmin/plans error", err);
-    return NextResponse.json(
-      { error: "Failed to create plan" },
-      { status: 500 },
-    );
+    const msg = (err as any)?.message || "Failed to create plan";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
