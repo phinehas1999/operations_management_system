@@ -12,6 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -153,126 +160,134 @@ export default function PaymentConfirmationsPage() {
             />
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Confirmations</CardTitle>
+              <CardDescription>
+                A list of recent payment confirmations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <IconLoader className="animate-spin h-6 w-6 mx-auto" />
-                    </TableCell>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Tenant</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : filteredConfirmations.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No payment confirmations found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredConfirmations.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        {new Date(
-                          c.createdAt || c.paymentDate,
-                        ).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {c.tenant?.name || "Unknown Tenant"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col text-sm">
-                          <span>Invoice: {c.invoiceId?.slice(0, 8)}...</span>
-                          {c.invoice && (
-                            <span className="text-xs text-muted-foreground">
-                              (Due:{" "}
-                              {new Intl.NumberFormat("en-US", {
-                                style: "currency",
-                                currency: c.currency || "USD",
-                              }).format((c.invoice.amountCents || 0) / 100)}
-                              )
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: c.currency || "USD",
-                        }).format(c.amountCents / 100)}
-                      </TableCell>
-                      <TableCell>{c.paymentMethod}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            c.status === "Approved"
-                              ? "default"
-                              : c.status === "Rejected"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <IconDotsVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {c.proofFileUrl && (
-                              <DropdownMenuItem>
-                                <a
-                                  href={c.proofFileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center w-full"
-                                >
-                                  <IconExternalLink className="mr-2 h-4 w-4" />
-                                  View Proof
-                                </a>
-                              </DropdownMenuItem>
-                            )}
-                            {/* Show Approve unless already approved; show Reject unless already rejected */}
-                            {c.status !== "Approved" && (
-                              <DropdownMenuItem
-                                onClick={() => handleReview(c, "approve")}
-                              >
-                                <IconCheck className="mr-2 h-4 w-4 text-green-600" />
-                                Approve
-                              </DropdownMenuItem>
-                            )}
-                            {c.status !== "Rejected" && (
-                              <DropdownMenuItem
-                                onClick={() => handleReview(c, "reject")}
-                              >
-                                <IconX className="mr-2 h-4 w-4 text-red-600" />
-                                Reject
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <IconLoader className="animate-spin h-6 w-6 mx-auto" />
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : filteredConfirmations.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        No payment confirmations found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredConfirmations.map((c) => (
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          {new Date(
+                            c.createdAt || c.paymentDate,
+                          ).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {c.tenant?.name || "Unknown Tenant"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col text-sm">
+                            <span>Invoice: {c.invoiceId?.slice(0, 8)}...</span>
+                            {c.invoice && (
+                              <span className="text-xs text-muted-foreground">
+                                (Due:{" "}
+                                {new Intl.NumberFormat("en-US", {
+                                  style: "currency",
+                                  currency: c.currency || "USD",
+                                }).format((c.invoice.amountCents || 0) / 100)}
+                                )
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: c.currency || "USD",
+                          }).format(c.amountCents / 100)}
+                        </TableCell>
+                        <TableCell>{c.paymentMethod}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              c.status === "Approved"
+                                ? "default"
+                                : c.status === "Rejected"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                          >
+                            {c.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <IconDotsVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {c.proofFileUrl && (
+                                <DropdownMenuItem>
+                                  <a
+                                    href={c.proofFileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center w-full"
+                                  >
+                                    <IconExternalLink className="mr-2 h-4 w-4" />
+                                    View Proof
+                                  </a>
+                                </DropdownMenuItem>
+                              )}
+                              {/* Show Approve unless already approved; show Reject unless already rejected */}
+                              {c.status !== "Approved" && (
+                                <DropdownMenuItem
+                                  onClick={() => handleReview(c, "approve")}
+                                >
+                                  <IconCheck className="mr-2 h-4 w-4 text-green-600" />
+                                  Approve
+                                </DropdownMenuItem>
+                              )}
+                              {c.status !== "Rejected" && (
+                                <DropdownMenuItem
+                                  onClick={() => handleReview(c, "reject")}
+                                >
+                                  <IconX className="mr-2 h-4 w-4 text-red-600" />
+                                  Reject
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       </SidebarInset>
 
