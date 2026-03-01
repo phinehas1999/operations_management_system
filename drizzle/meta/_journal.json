@@ -19,22 +19,8 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1772340000000,
-      "tag": "0002_billing_tables",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1772345000000,
-      "tag": "0003_tenants_plan_id",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1772348000000,
-      "tag": "0004_drop_tenants_plan",
+      "when": 1772366294449,
+      "tag": "0002_amused_star_brand",
       "breakpoints": true
     }
   ]

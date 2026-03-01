@@ -23,6 +23,11 @@ const sidebarData = {
       icon: "report",
     },
     {
+      title: "Payment Confirmations",
+      url: "/superadmin/payment_confirmations",
+      icon: "fileDescription",
+    },
+    {
       title: "Platform Settings",
       url: "/superadmin/platform_settings",
       icon: "settings",

@@ -24,6 +24,12 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "Overdue",
 ]);
 
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "Pending",
+  "Approved",
+  "Rejected",
+]);
+
 export const statusEnum = pgEnum("tenant_status", ["Active", "Suspended"]);
 
 export const tenants = pgTable("tenants", {
@@ -87,6 +93,30 @@ export const invoices = pgTable("billing_invoices", {
     .notNull(),
 });
 
+export const paymentConfirmations = pgTable("payment_confirmations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  invoiceId: uuid("invoice_id").references(() => invoices.id, {
+    onDelete: "set null",
+  }),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").default("USD").notNull(),
+  paymentDate: timestamp("payment_date", { withTimezone: true }).notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  transactionReference: text("transaction_reference"),
+  proofFileUrl: text("proof_file_url"),
+  status: paymentStatusEnum("status").default("Pending").notNull(),
+  adminNote: text("admin_note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`now()`)
+    .notNull(),
+});
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name"),
@@ -115,7 +145,7 @@ export const billingPlansRelations = relations(billingPlans, ({ many }) => ({
   invoices: many(invoices),
 }));
 
-export const invoicesRelations = relations(invoices, ({ one }) => ({
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [invoices.tenantId],
     references: [tenants.id],
@@ -124,7 +154,22 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
     fields: [invoices.planId],
     references: [billingPlans.id],
   }),
+  payments: many(paymentConfirmations),
 }));
+
+export const paymentConfirmationsRelations = relations(
+  paymentConfirmations,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [paymentConfirmations.tenantId],
+      references: [tenants.id],
+    }),
+    invoice: one(invoices, {
+      fields: [paymentConfirmations.invoiceId],
+      references: [invoices.id],
+    }),
+  }),
+);
 
 export const tenantsRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),
@@ -132,6 +177,7 @@ export const tenantsRelations = relations(tenants, ({ many, one }) => ({
     fields: [tenants.planId],
     references: [billingPlans.id],
   }),
+  payments: many(paymentConfirmations),
 }));
 
 // NextAuth adapter tables
@@ -206,3 +252,5 @@ export type Plan = BillingPlan;
 export type TenantStatus = (typeof statusEnum.enumValues)[number];
 export type Invoice = typeof invoices.$inferSelect;
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
+export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
+export type PaymentStatus = (typeof paymentStatusEnum.enumValues)[number];
