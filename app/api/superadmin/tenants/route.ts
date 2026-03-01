@@ -1,12 +1,29 @@
 import { NextResponse } from "next/server";
-import { db, tenants } from "@/db/client";
+import { db, tenants, billingPlans } from "@/db/client";
 import { eq } from "drizzle-orm";
 
 type PatchBody = { id?: string; status?: string } & Record<string, any>;
 
 export async function GET() {
   try {
-    const rows = await db.select().from(tenants).orderBy(tenants.name);
+    const rows = await db
+      .select({
+        id: tenants.id,
+        slug: tenants.slug,
+        name: tenants.name,
+        planId: tenants.planId,
+        status: tenants.status,
+        seats: tenants.seats,
+        adminEmail: tenants.adminEmail,
+        monthlyRevenue: tenants.monthlyRevenue,
+        settings: tenants.settings,
+        createdAt: tenants.createdAt,
+        planName: billingPlans.name,
+        planSlug: billingPlans.slug,
+      })
+      .from(tenants)
+      .leftJoin(billingPlans, eq(billingPlans.id, tenants.planId))
+      .orderBy(tenants.name);
     return NextResponse.json(rows);
   } catch (err) {
     console.error("GET /api/superadmin/tenants error", err);
@@ -39,11 +56,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: true, updated: updated[0] ?? null });
     }
 
-    // Otherwise allow updating fields: name, slug, plan, seats, adminEmail, monthlyRevenue
+    // Otherwise allow updating fields: name, slug, planId, seats, adminEmail, monthlyRevenue
     const patch: any = {};
     if (body.name !== undefined) patch.name = body.name;
     if (body.slug !== undefined) patch.slug = body.slug;
-    if (body.plan !== undefined) patch.plan = body.plan;
+    if (body.planId !== undefined) patch.planId = body.planId;
     if (body.seats !== undefined) patch.seats = Number(body.seats || 0);
     if (body.adminEmail !== undefined)
       patch.adminEmail = body.adminEmail || null;
@@ -93,7 +110,7 @@ export async function DELETE(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, slug, plan, seats, adminEmail, monthlyRevenue } = body as any;
+    const { name, slug, seats, adminEmail, monthlyRevenue } = body as any;
     if (!name || !slug) {
       return NextResponse.json(
         { error: "Missing name or slug" },
@@ -101,18 +118,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const insert = await db
-      .insert(tenants)
-      .values({
-        name,
-        slug,
-        plan: (plan || "Trial") as any,
-        status: "Active" as any,
-        seats: seats ? Number(seats) : 1,
-        adminEmail: adminEmail || null,
-        monthlyRevenue: monthlyRevenue ? Number(monthlyRevenue) : 0,
-      })
-      .returning();
+    const insertData: any = {
+      name,
+      slug,
+      status: "Active" as any,
+      seats: seats ? Number(seats) : 1,
+      adminEmail: adminEmail || null,
+      monthlyRevenue: monthlyRevenue ? Number(monthlyRevenue) : 0,
+    };
+
+    if (body.planId) insertData.planId = body.planId;
+
+    const insert = await db.insert(tenants).values(insertData).returning();
 
     return NextResponse.json({ success: true, tenant: insert[0] ?? null });
   } catch (err) {

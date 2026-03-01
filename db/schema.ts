@@ -18,7 +18,11 @@ export const roleEnum = pgEnum("role", [
   "STAFF",
 ]);
 
-export const planEnum = pgEnum("plan", ["Trial", "Basic", "Pro", "Enterprise"]);
+export const invoiceStatusEnum = pgEnum("invoice_status", [
+  "Paid",
+  "Due",
+  "Overdue",
+]);
 
 export const statusEnum = pgEnum("tenant_status", ["Active", "Suspended"]);
 
@@ -26,7 +30,9 @@ export const tenants = pgTable("tenants", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-  plan: planEnum("plan").notNull().default("Trial"),
+  planId: uuid("plan_id")
+    .references(() => billingPlans.id, { onDelete: "set null" })
+    .$type<string | null>(),
   status: statusEnum("status").notNull().default("Active"),
   seats: integer("seats").notNull().default(1),
   adminEmail: text("admin_email"),
@@ -34,6 +40,50 @@ export const tenants = pgTable("tenants", {
   settings: jsonb("settings").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
+    .notNull(),
+});
+
+export const billingPlans = pgTable("billing_plans", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  priceMonthlyCents: integer("price_monthly_cents").notNull().default(0),
+  priceYearlyCents: integer("price_yearly_cents").notNull().default(0),
+  seats: integer("seats"),
+  features: jsonb("features")
+    .$type<string[]>()
+    .default(sql`'[]'::jsonb`)
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const invoices = pgTable("billing_invoices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  planId: uuid("plan_id").references(() => billingPlans.id, {
+    onDelete: "set null",
+  }),
+  planName: text("plan_name"),
+  amountCents: integer("amount_cents").notNull(),
+  currency: text("currency").default("USD").notNull(),
+  status: invoiceStatusEnum("status").default("Due").notNull(),
+  issuedAt: timestamp("issued_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  periodStart: timestamp("period_start", { withTimezone: true }),
+  periodEnd: timestamp("period_end", { withTimezone: true }),
+  meta: jsonb("meta").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`now()`)
     .notNull(),
 });
 
@@ -61,8 +111,27 @@ export const usersRelations = relations(users, ({ one }) => ({
   }),
 }));
 
-export const tenantsRelations = relations(tenants, ({ many }) => ({
+export const billingPlansRelations = relations(billingPlans, ({ many }) => ({
+  invoices: many(invoices),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [invoices.tenantId],
+    references: [tenants.id],
+  }),
+  plan: one(billingPlans, {
+    fields: [invoices.planId],
+    references: [billingPlans.id],
+  }),
+}));
+
+export const tenantsRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),
+  plan: one(billingPlans, {
+    fields: [tenants.planId],
+    references: [billingPlans.id],
+  }),
 }));
 
 // NextAuth adapter tables
@@ -132,5 +201,8 @@ export const authenticators = pgTable(
 export type Role = (typeof roleEnum.enumValues)[number];
 export type User = typeof users.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
-export type Plan = (typeof planEnum.enumValues)[number];
+export type BillingPlan = typeof billingPlans.$inferSelect;
+export type Plan = BillingPlan;
 export type TenantStatus = (typeof statusEnum.enumValues)[number];
+export type Invoice = typeof invoices.$inferSelect;
+export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];

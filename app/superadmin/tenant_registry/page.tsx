@@ -22,7 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import registry from "./mockRegistry";
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
@@ -30,29 +29,66 @@ export default function Page() {
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState("all");
   const [plan, setPlan] = React.useState("all");
+  const [registry, setRegistry] = React.useState<Array<any>>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const plans = React.useMemo(
-    () => Array.from(new Set(registry.map((r) => r.plan))).sort(),
-    [],
+    () =>
+      Array.from(
+        new Set(registry.map((r) => r.planName || "Unassigned")),
+      ).sort(),
+    [registry],
   );
   const statuses = React.useMemo(
     () => Array.from(new Set(registry.map((r) => r.status))).sort(),
-    [],
+    [registry],
   );
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     return registry.filter((t) => {
       if (status !== "all" && t.status !== status) return false;
-      if (plan !== "all" && t.plan !== plan) return false;
+      if (plan !== "all" && (t.planName || "Unassigned") !== plan) return false;
       if (!q) return true;
       return (
         t.name.toLowerCase().includes(q) ||
         t.slug.toLowerCase().includes(q) ||
-        t.adminEmail.toLowerCase().includes(q)
+        (t.adminEmail || "").toLowerCase().includes(q)
       );
     });
   }, [query, status, plan]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const ctrl = new AbortController();
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/superadmin/tenants", {
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error("Failed to fetch tenants");
+        const data = await res.json();
+        if (!mounted) return;
+        setRegistry(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        console.error(err);
+        setError(err?.message ?? "Unknown error");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+      ctrl.abort();
+    };
+  }, []);
 
   const formatDate = (ts: string) => {
     const d = new Date(ts);
@@ -66,7 +102,7 @@ export default function Page() {
       "id",
       "name",
       "slug",
-      "plan",
+      "planName",
       "status",
       "seats",
       "adminEmail",
@@ -114,6 +150,14 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {loading && (
+                      <div className="text-sm text-muted-foreground">
+                        Loading…
+                      </div>
+                    )}
+                    {error && (
+                      <div className="text-sm text-destructive">{error}</div>
+                    )}
                     <Button size="sm" variant="default">
                       New Tenant
                     </Button>
@@ -195,7 +239,7 @@ export default function Page() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell>{t.plan}</TableCell>
+                          <TableCell>{t.planName || "Unassigned"}</TableCell>
                           <TableCell>
                             <Badge
                               variant={

@@ -58,6 +58,9 @@ export default function Page() {
   const [sortKey, setSortKey] = React.useState<"name" | "seats">("name");
 
   const [tenants, setTenants] = React.useState<Array<any>>([]);
+  const [planOptions, setPlanOptions] = React.useState<
+    Array<{ id: string; name: string; slug: string }>
+  >([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [processingId, setProcessingId] = React.useState<string | null>(null);
@@ -70,14 +73,16 @@ export default function Page() {
   const [nameField, setNameField] = React.useState("");
   const [slugField, setSlugField] = React.useState("");
   const [slugEditable, setSlugEditable] = React.useState(false);
-  const [planField, setPlanField] = React.useState("Pro");
+  const [planField, setPlanField] = React.useState("");
   const [seatsField, setSeatsField] = React.useState<number>(1);
   const [adminEmailField, setAdminEmailField] = React.useState("");
   const [monthlyRevenueField, setMonthlyRevenueField] =
     React.useState<number>(0);
 
   const plans = React.useMemo(() => {
-    return Array.from(new Set(tenants.map((t) => t.plan))).sort();
+    return Array.from(
+      new Set(tenants.map((t) => t.planName || "Unassigned")),
+    ).sort();
   }, [tenants]);
 
   const statuses = React.useMemo(() => {
@@ -88,7 +93,7 @@ export default function Page() {
     const q = query.trim().toLowerCase();
     let out = tenants.filter((t) => {
       if (status !== "all" && t.status !== status) return false;
-      if (plan !== "all" && t.plan !== plan) return false;
+      if (plan !== "all" && (t.planName || "Unassigned") !== plan) return false;
       if (!q) return true;
       return (
         (t.name || "").toLowerCase().includes(q) ||
@@ -107,6 +112,12 @@ export default function Page() {
   }, [tenants, query, status, plan, sortKey]);
 
   React.useEffect(() => {
+    if (!planField && planOptions.length) {
+      setPlanField(planOptions[0].id);
+    }
+  }, [planOptions, planField]);
+
+  React.useEffect(() => {
     let mounted = true;
     const ctrl = new AbortController();
 
@@ -114,13 +125,19 @@ export default function Page() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/superadmin/tenants", {
-          signal: ctrl.signal,
-        });
-        if (!res.ok) throw new Error("Failed to fetch tenants");
-        const data = await res.json();
+        const [tenantsRes, plansRes] = await Promise.all([
+          fetch("/api/superadmin/tenants", { signal: ctrl.signal }),
+          fetch("/api/superadmin/plans", { signal: ctrl.signal }),
+        ]);
+        if (!tenantsRes.ok) throw new Error("Failed to fetch tenants");
+        if (!plansRes.ok) throw new Error("Failed to fetch plans");
+        const [tenantData, planData] = await Promise.all([
+          tenantsRes.json(),
+          plansRes.json(),
+        ]);
         if (!mounted) return;
-        setTenants(Array.isArray(data) ? data : []);
+        setTenants(Array.isArray(tenantData) ? tenantData : []);
+        setPlanOptions(Array.isArray(planData) ? planData : []);
       } catch (err: any) {
         if (err.name === "AbortError") return;
         console.error(err);
@@ -142,7 +159,7 @@ export default function Page() {
       "id",
       "name",
       "slug",
-      "plan",
+      "planName",
       "status",
       "seats",
       "adminEmail",
@@ -218,7 +235,7 @@ export default function Page() {
     setNameField(t.name || "");
     setSlugField(t.slug || "");
     setSlugEditable(false);
-    setPlanField(t.plan || "Pro");
+    setPlanField(t.planId || "");
     setSeatsField(Number(t.seats || 1));
     setAdminEmailField(t.adminEmail || "");
     setMonthlyRevenueField(Number(t.monthlyRevenue || 0));
@@ -245,6 +262,9 @@ export default function Page() {
       setProcessingId(null);
     }
   }
+
+  const selectedPlanLabel =
+    planOptions.find((p) => p.id === planField)?.name || "Select plan";
 
   return (
     <SidebarProvider
@@ -337,15 +357,14 @@ export default function Page() {
                               onValueChange={(v) => setPlanField(v)}
                             >
                               <SelectTrigger size="sm">
-                                <SelectValue>{planField}</SelectValue>
+                                <SelectValue>{selectedPlanLabel}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Trial">Trial</SelectItem>
-                                <SelectItem value="Basic">Basic</SelectItem>
-                                <SelectItem value="Pro">Pro</SelectItem>
-                                <SelectItem value="Enterprise">
-                                  Enterprise
-                                </SelectItem>
+                                {planOptions.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -413,7 +432,7 @@ export default function Page() {
                                     body: JSON.stringify({
                                       name: nameField,
                                       slug: slugField,
-                                      plan: planField,
+                                      planId: planField || null,
                                       seats: Number(seatsField || 1),
                                       adminEmail: adminEmailField || null,
                                       monthlyRevenue: Number(
@@ -433,7 +452,7 @@ export default function Page() {
                                 // reset fields
                                 setNameField("");
                                 setSlugField("");
-                                setPlanField("Pro");
+                                setPlanField("");
                                 setSeatsField(1);
                                 setAdminEmailField("");
                                 setMonthlyRevenueField(0);
@@ -483,15 +502,14 @@ export default function Page() {
                               onValueChange={(v) => setPlanField(v)}
                             >
                               <SelectTrigger size="sm">
-                                <SelectValue>{planField}</SelectValue>
+                                <SelectValue>{selectedPlanLabel}</SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="Trial">Trial</SelectItem>
-                                <SelectItem value="Basic">Basic</SelectItem>
-                                <SelectItem value="Pro">Pro</SelectItem>
-                                <SelectItem value="Enterprise">
-                                  Enterprise
-                                </SelectItem>
+                                {planOptions.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -559,7 +577,7 @@ export default function Page() {
                                       id: editingId,
                                       name: nameField,
                                       slug: slugField,
-                                      plan: planField,
+                                      planId: planField || null,
                                       seats: Number(seatsField || 1),
                                       adminEmail: adminEmailField || null,
                                       monthlyRevenue: Number(
@@ -695,7 +713,7 @@ export default function Page() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{t.plan}</TableCell>
+                        <TableCell>{t.planName || "Unassigned"}</TableCell>
                         <TableCell>
                           <Badge
                             variant={

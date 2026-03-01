@@ -50,14 +50,14 @@ Conventions
 
 ### tenants
 
-| column     | type        | constraints      | notes                   |
-| ---------- | ----------- | ---------------- | ----------------------- |
-| id         | uuid        | pk               |                         |
-| slug       | text        | unique, not null | used for subdomain/path |
-| name       | text        | not null         | tenant name             |
-| plan       | text        | nullable         | billing/feature tier    |
-| settings   | jsonb       | default {}       | branding, feature flags |
-| created_at | timestamptz | default now()    |                         |
+| column     | type        | constraints            | notes                   |
+| ---------- | ----------- | ---------------------- | ----------------------- |
+| id         | uuid        | pk                     |                         |
+| slug       | text        | unique, not null       | used for subdomain/path |
+| name       | text        | not null               | tenant name             |
+| plan_id    | uuid        | fk -> billing_plans.id | billing/feature tier    |
+| settings   | jsonb       | default {}             | branding, feature flags |
+| created_at | timestamptz | default now()          |                         |
 
 ### users
 
