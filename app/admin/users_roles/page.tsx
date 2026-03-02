@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
+import AddUserDialog from "./add-user-dialog";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { db, users } from "@/db/client";
 import { requireActiveTenant } from "@/lib/tenant-auth";
@@ -61,9 +62,7 @@ export default async function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      Invite User
-                    </Button>
+                    <AddUserDialog tenantId={tenant.id} />
                   </div>
                 </div>
 

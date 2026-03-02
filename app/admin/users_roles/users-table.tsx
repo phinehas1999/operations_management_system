@@ -2,8 +2,16 @@
 
 import * as React from "react";
 
-import { Badge } from "@/components/ui/badge";
+// badge removed — status column removed
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Edit2, Trash2 } from "lucide-react";
+import EditUserModal from "./edit-user-modal";
 import {
   Select,
   SelectContent,
@@ -21,14 +29,11 @@ import {
 } from "@/components/ui/table";
 import type { Role } from "@/db/schema";
 
-type UserStatus = "Active" | "Suspended" | "Inactive";
-
 export type TenantUserRow = {
   id: string;
   name: string | null;
   email: string;
   role: Role;
-  status: UserStatus;
   team: string | null;
   createdAt: string;
 };
@@ -36,14 +41,9 @@ export type TenantUserRow = {
 export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
   const [query, setQuery] = React.useState("");
   const [role, setRole] = React.useState<"all" | Role>("all");
-  const [status, setStatus] = React.useState<"all" | UserStatus>("all");
 
   const roles = React.useMemo(
     () => Array.from(new Set(users.map((u) => u.role))).sort(),
-    [users],
-  );
-  const statuses = React.useMemo(
-    () => Array.from(new Set(users.map((u) => u.status))).sort(),
     [users],
   );
 
@@ -51,7 +51,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
     const q = query.trim().toLowerCase();
     return users.filter((u) => {
       if (role !== "all" && u.role !== role) return false;
-      if (status !== "all" && u.status !== status) return false;
       if (!q) return true;
       return (
         (u.name || "").toLowerCase().includes(q) ||
@@ -59,7 +58,33 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
         (u.team || "").toLowerCase().includes(q)
       );
     });
-  }, [query, role, status, users]);
+  }, [query, role, users]);
+
+  const [editingUser, setEditingUser] = React.useState<TenantUserRow | null>(
+    null,
+  );
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this user? This action cannot be undone.")) return;
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Failed to delete user");
+      // refresh by reloading the page data
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete user");
+    }
+  }
+
+  function handleEdit(id: string) {
+    const u = users.find((x) => x.id === id) ?? null;
+    setEditingUser(u);
+  }
 
   return (
     <>
@@ -89,25 +114,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
               ))}
             </SelectContent>
           </Select>
-
-          <Select
-            value={status}
-            onValueChange={(v) => setStatus(v as UserStatus | "all")}
-          >
-            <SelectTrigger size="sm">
-              <SelectValue>
-                {status === "all" ? "All statuses" : status}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {statuses.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -117,7 +123,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Team</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Created</TableHead>
@@ -129,13 +134,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.name || "—"}</TableCell>
                 <TableCell>{u.role}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={u.status === "Active" ? "default" : "secondary"}
-                  >
-                    {u.status}
-                  </Badge>
-                </TableCell>
                 <TableCell>{u.team || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {u.email}
@@ -144,14 +142,38 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
                   {u.createdAt}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost">
-                    Manage
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="ghost" aria-label="Actions">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onSelect={() => handleEdit(u.id)}>
+                        <Edit2 className="size-4 mr-2" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => handleDelete(u.id)}
+                      >
+                        <Trash2 className="size-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        {editingUser && (
+          <EditUserModal
+            user={editingUser}
+            open={true}
+            onOpenChange={(v) => {
+              if (!v) setEditingUser(null);
+            }}
+          />
+        )}
       </div>
     </>
   );
