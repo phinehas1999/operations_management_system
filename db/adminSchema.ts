@@ -58,13 +58,20 @@ export const tasks = pgTable("tasks", {
   assigneeId: uuid("assignee_id")
     .references(() => users.id, { onDelete: "set null" })
     .$type<string | null>(),
-  status: text("status").default("open").notNull(),
-  priority: integer("priority").default(0).notNull(),
+  assigneeTeamId: uuid("assignee_team_id")
+    .references(() => teams.id, { onDelete: "set null" })
+    .$type<string | null>(),
+  assigneeType: text("assignee_type").default("UNASSIGNED").notNull(),
+  status: text("status").default("pending").notNull(),
+  priority: text("priority").default("medium").notNull(),
   meta: jsonb("meta")
     .$type<Record<string, unknown>>()
     .default(sql`'{}'::jsonb`)
     .notNull(),
   dueAt: timestamp("due_at", { withTimezone: true }),
+  createdBy: uuid("created_by")
+    .references(() => users.id, { onDelete: "set null" })
+    .$type<string | null>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -106,6 +113,11 @@ export const userTeamsRelations = relations(userTeams, ({ one }) => ({
 export const tasksRelations = relations(tasks, ({ one }) => ({
   tenant: one(tenants, { fields: [tasks.tenantId], references: [tenants.id] }),
   assignee: one(users, { fields: [tasks.assigneeId], references: [users.id] }),
+  assigneeTeam: one(teams, {
+    fields: [tasks.assigneeTeamId],
+    references: [teams.id],
+  }),
+  creator: one(users, { fields: [tasks.createdBy], references: [users.id] }),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({

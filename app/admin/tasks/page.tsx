@@ -21,37 +21,109 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
-import tasks from "./mockTasks";
+import TaskFormModal from "./task-form-modal";
+import TaskRowActions from "./task-row-actions";
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
+
+type TaskRow = {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority: string;
+  assigneeType: "UNASSIGNED" | "USER" | "TEAM";
+  assigneeUserId?: string | null;
+  assigneeTeamId?: string | null;
+  assigneeName?: string | null;
+  dueAt?: string | null;
+  createdAt?: string | null;
+};
 
 export default function Page() {
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState("all");
   const [priority, setPriority] = React.useState("all");
+  const [assignee, setAssignee] = React.useState("all");
+  const [tasks, setTasks] = React.useState<TaskRow[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  const loadTasks = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/tasks");
+      if (!res.ok) throw new Error("Failed to load tasks");
+      const data = await res.json();
+      setTasks(data.tasks || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const statuses = React.useMemo(
-    () => Array.from(new Set(tasks.map((t) => t.status))).sort(),
-    [],
+    () => Array.from(new Set(tasks.map((t) => t.status))).filter(Boolean),
+    [tasks],
   );
+
   const priorities = React.useMemo(
-    () => Array.from(new Set(tasks.map((t) => t.priority))).sort(),
-    [],
+    () => Array.from(new Set(tasks.map((t) => t.priority))).filter(Boolean),
+    [tasks],
   );
+
+  const assigneeOptions = React.useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    tasks.forEach((t) => {
+      if (t.assigneeType === "UNASSIGNED") {
+        if (!seen.has("unassigned")) {
+          opts.push({ value: "unassigned", label: "Unassigned" });
+          seen.add("unassigned");
+        }
+        return;
+      }
+      const key = `${t.assigneeType}:${t.assigneeType === "USER" ? t.assigneeUserId : t.assigneeTeamId}`;
+      if (key && !seen.has(key)) {
+        opts.push({ value: key, label: t.assigneeName || "(No name)" });
+        seen.add(key);
+      }
+    });
+    return opts;
+  }, [tasks]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
       if (status !== "all" && t.status !== status) return false;
       if (priority !== "all" && t.priority !== priority) return false;
+      if (assignee !== "all") {
+        if (assignee === "unassigned" && t.assigneeType !== "UNASSIGNED")
+          return false;
+        if (assignee !== "unassigned") {
+          const [type, id] = assignee.split(":");
+          if (type === "USER" && t.assigneeUserId !== id) return false;
+          if (type === "TEAM" && t.assigneeTeamId !== id) return false;
+        }
+      }
       if (!q) return true;
-      return (
-        t.title.toLowerCase().includes(q) ||
-        t.assignedTo.toLowerCase().includes(q)
-      );
+      const haystack = `${t.title} ${t.assigneeName || ""}`.toLowerCase();
+      return haystack.includes(q);
     });
-  }, [query, status, priority]);
+  }, [tasks, query, status, priority, assignee]);
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString();
+  };
 
   return (
     <SidebarProvider
@@ -77,9 +149,11 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Task
-                    </Button>
+                    <TaskFormModal
+                      mode="create"
+                      onSaved={loadTasks}
+                      trigger={<Button size="sm">New Task</Button>}
+                    />
                   </div>
                 </div>
 
@@ -127,6 +201,25 @@ export default function Page() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select
+                      value={assignee}
+                      onValueChange={(v) => setAssignee(v)}
+                    >
+                      <SelectTrigger size="sm">
+                        <SelectValue>
+                          {assignee === "all" ? "All assignees" : assignee}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All assignees</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {assigneeOptions.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -139,34 +232,69 @@ export default function Page() {
                         <TableHead>Status</TableHead>
                         <TableHead>Assigned</TableHead>
                         <TableHead>Due</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((t) => (
-                        <TableRow key={t.id}>
-                          <TableCell className="font-medium">
-                            {t.title}
-                          </TableCell>
-                          <TableCell>{t.priority}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                t.status === "Completed"
-                                  ? "default"
-                                  : t.status === "Review"
-                                    ? "secondary"
-                                    : "outline"
-                              }
-                            >
-                              {t.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{t.assignedTo}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {t.dueDate}
+                      {loading && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center text-sm text-muted-foreground"
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                              Loading tasks...
+                            </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
+                      {!loading && filtered.length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center text-sm text-muted-foreground"
+                          >
+                            No tasks found.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {!loading &&
+                        filtered.map((t) => (
+                          <TableRow key={t.id}>
+                            <TableCell className="font-medium">
+                              {t.title}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {t.priority}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  t.status === "completed"
+                                    ? "default"
+                                    : t.status === "review"
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                                className="capitalize"
+                              >
+                                {t.status.replace("-", " ")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {t.assigneeType === "UNASSIGNED"
+                                ? "Unassigned"
+                                : t.assigneeName || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {formatDate(t.dueAt)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <TaskRowActions task={t} onChanged={loadTasks} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
                     </TableBody>
                   </Table>
                 </div>
