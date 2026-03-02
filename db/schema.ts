@@ -30,6 +30,8 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "Rejected",
 ]);
 
+export const assetStatusEnum = pgEnum("asset_status", ["Active", "Inactive"]);
+
 export const statusEnum = pgEnum("tenant_status", ["Active", "Suspended"]);
 
 export const tenants = pgTable("tenants", {
@@ -180,6 +182,39 @@ export const tenantsRelations = relations(tenants, ({ many, one }) => ({
   payments: many(paymentConfirmations),
 }));
 
+// Assets (tenant-scoped inventory). team_id is optional and NOT enforced
+// as a foreign key here to avoid cross-file circular imports with adminSchema.
+export const assets = pgTable("assets", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  category: text("category"),
+  quantity: integer("quantity").notNull().default(0),
+  minimumThreshold: integer("minimum_threshold").notNull().default(0),
+  status: assetStatusEnum("status").notNull().default("Active"),
+  teamId: uuid("team_id").$type<string | null>(),
+  tenantId: uuid("tenant_id")
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const assetLogs = pgTable("asset_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assetId: uuid("asset_id")
+    .notNull()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  quantity: integer("quantity").notNull(),
+  userId: uuid("user_id")
+    .$type<string | null>()
+    .references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // NextAuth adapter tables
 export const accounts = pgTable(
   "accounts",
@@ -254,3 +289,5 @@ export type Invoice = typeof invoices.$inferSelect;
 export type InvoiceStatus = (typeof invoiceStatusEnum.enumValues)[number];
 export type PaymentConfirmation = typeof paymentConfirmations.$inferSelect;
 export type PaymentStatus = (typeof paymentStatusEnum.enumValues)[number];
+export type Asset = typeof assets.$inferSelect;
+export type AssetLog = typeof assetLogs.$inferSelect;

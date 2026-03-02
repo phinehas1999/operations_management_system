@@ -27,9 +27,12 @@ export async function POST(req: Request) {
 
     // validate managerId and memberIds belong to tenant
     if (managerId) {
-      const m = await db.query.users.findFirst({
-        where: eq(users.id, managerId),
-      });
+      const mRows = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, managerId))
+        .limit(1);
+      const m = mRows[0] ?? null;
       if (!m || m.tenantId !== tenant.id)
         return NextResponse.json({ error: "Invalid manager" }, { status: 400 });
     }
@@ -99,6 +102,35 @@ export async function POST(req: Request) {
   }
 }
 
+export async function GET() {
+  try {
+    const { session, tenant, response } = await requireTenantApi();
+    if (response) return response;
+    if (!tenant)
+      return NextResponse.json({ error: "Tenant required" }, { status: 403 });
+
+    const rows = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        description: teams.description,
+        managerId: teams.managerId,
+        createdAt: teams.createdAt,
+      })
+      .from(teams)
+      .where(eq(teams.tenantId, tenant.id))
+      .orderBy(teams.name);
+
+    return NextResponse.json(rows);
+  } catch (err) {
+    console.error("GET /api/admin/teams error", err);
+    return NextResponse.json(
+      { error: "Failed to list teams" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const { session, tenant, response } = await requireTenantApi();
@@ -149,9 +181,12 @@ export async function PATCH(req: Request) {
       ? body.memberIds.filter(Boolean)
       : null;
     if (patch.managerId) {
-      const m = await db.query.users.findFirst({
-        where: eq(users.id, patch.managerId),
-      });
+      const mRows = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, patch.managerId))
+        .limit(1);
+      const m = mRows[0] ?? null;
       if (!m || m.tenantId !== tenant.id)
         return NextResponse.json({ error: "Invalid manager" }, { status: 400 });
     }
