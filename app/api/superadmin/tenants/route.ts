@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { db, tenants, billingPlans } from "@/db/client";
+import { hash } from "argon2";
 import { eq } from "drizzle-orm";
+
+import { db, tenants, billingPlans, users } from "@/db/client";
+import type { Role } from "@/db/schema";
 
 type PatchBody = { id?: string; status?: string } & Record<string, any>;
 
@@ -110,30 +113,161 @@ export async function DELETE(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, slug, seats, adminEmail, monthlyRevenue } = body as any;
-    if (!name || !slug) {
+    const {
+      name,
+      slug,
+      seats,
+      adminEmail,
+      adminPassword,
+      adminName,
+      monthlyRevenue,
+      status,
+      planId,
+    } = body as any;
+
+    const safeName = typeof name === "string" ? name.trim() : "";
+    const safeSlug = typeof slug === "string" ? slug.trim().toLowerCase() : "";
+    const safeAdminEmail =
+      typeof adminEmail === "string" ? adminEmail.trim().toLowerCase() : "";
+    const safeAdminPassword =
+      typeof adminPassword === "string" ? adminPassword.trim() : "";
+    const safeAdminName =
+      typeof adminName === "string" ? adminName.trim() : safeName;
+    const safePlanId =
+      typeof planId === "string" && planId.trim().length > 0
+        ? planId.trim()
+        : null;
+
+    if (!safeName || !safeSlug) {
       return NextResponse.json(
         { error: "Missing name or slug" },
         { status: 400 },
       );
     }
 
+    if (!safeAdminEmail || !safeAdminPassword) {
+      return NextResponse.json(
+        { error: "Missing admin email or password" },
+        { status: 400 },
+      );
+    }
+
+    const slugExists = await db.query.tenants.findFirst({
+      where: eq(tenants.slug, safeSlug),
+    });
+
+    if (slugExists) {
+      return NextResponse.json(
+        { error: "Slug already exists" },
+        { status: 409 },
+      );
+    }
+
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, safeAdminEmail),
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "User with that email already exists" },
+        { status: 409 },
+      );
+    }
+
     const insertData: any = {
-      name,
-      slug,
-      status: "Active" as any,
+      name: safeName,
+      slug: safeSlug,
+      status: status === "Active" || status === "Suspended" ? status : "Active",
       seats: seats ? Number(seats) : 1,
-      adminEmail: adminEmail || null,
+      adminEmail: safeAdminEmail || null,
       monthlyRevenue: monthlyRevenue ? Number(monthlyRevenue) : 0,
     };
 
-    if (body.planId) insertData.planId = body.planId;
+    if (safePlanId) {
+      const planExists = await db.query.billingPlans.findFirst({
+        where: eq(billingPlans.id, safePlanId),
+      });
+      if (!planExists) {
+        return NextResponse.json({ error: "Plan not found" }, { status: 400 });
+      }
+      insertData.planId = safePlanId;
+    }
 
-    const insert = await db.insert(tenants).values(insertData).returning();
+    const passwordHash = await hash(safeAdminPassword);
 
-    return NextResponse.json({ success: true, tenant: insert[0] ?? null });
-  } catch (err) {
+    // NOTE: neon-http driver doesn't support transactions. Insert tenant
+    // first, then insert user. If user insert fails, remove the tenant
+    // to avoid leaving partial state (best-effort rollback).
+    const inserted = await db.insert(tenants).values(insertData).returning();
+    const tenant = inserted[0] ?? null;
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Failed to create tenant" },
+        { status: 500 },
+      );
+    }
+
+    try {
+      await db.insert(users).values({
+        email: safeAdminEmail,
+        name: safeAdminName,
+        password: passwordHash,
+        role: "ADMIN" as Role,
+        tenantId: tenant.id,
+        isSuperAdmin: false,
+      });
+    } catch (userErr: any) {
+      console.error(
+        "Failed to create admin user, rolling back tenant",
+        userErr,
+      );
+      try {
+        await db.delete(tenants).where(eq(tenants.id, tenant.id));
+      } catch (delErr) {
+        console.error(
+          "Failed to rollback tenant after user insert failure",
+          delErr,
+        );
+      }
+
+      const msg = typeof userErr?.message === "string" ? userErr.message : "";
+      if (
+        msg.includes("users_email") ||
+        msg.includes("email") ||
+        msg.includes("duplicate key")
+      ) {
+        return NextResponse.json(
+          { error: "User with that email already exists" },
+          { status: 409 },
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Failed to create admin user" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true, tenant });
+  } catch (err: any) {
     console.error("POST /api/superadmin/tenants error", err);
+
+    const message = typeof err?.message === "string" ? err.message : "";
+    if (message.includes("duplicate key") || message.includes("unique")) {
+      if (message.includes("tenants_slug") || message.includes("slug")) {
+        return NextResponse.json(
+          { error: "Slug already exists" },
+          { status: 409 },
+        );
+      }
+      if (message.includes("users_email") || message.includes("email")) {
+        return NextResponse.json(
+          { error: "User with that email already exists" },
+          { status: 409 },
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to create tenant" },
       { status: 500 },

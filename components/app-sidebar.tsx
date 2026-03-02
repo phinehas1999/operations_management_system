@@ -138,6 +138,27 @@ export function AppSidebar({
     }
   }
   const { data: session } = useSession();
+  const [tenantName, setTenantName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadTenant() {
+      try {
+        const res = await fetch("/api/tenant/current");
+        if (!mounted) return;
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!mounted) return;
+        if (json && json.name) setTenantName(json.name);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    loadTenant();
+    return () => {
+      mounted = false;
+    };
+  }, [session]);
 
   const resolvedData = React.useMemo(() => {
     const data = (sidedebardata ?? sidebarData) as SidebarData;
@@ -170,6 +191,11 @@ export function AppSidebar({
               <a href="#">
                 <IconInnerShadowTop className="size-5!" />
                 <span className="text-base font-semibold">OMS</span>
+                {tenantName ? (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    • {tenantName}
+                  </span>
+                ) : null}
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

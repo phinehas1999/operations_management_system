@@ -1,58 +1,41 @@
-"use client";
+import type { CSSProperties } from "react";
+import { desc, eq } from "drizzle-orm";
 
-import * as React from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/ui/select";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { db, users } from "@/db/client";
+import { requireActiveTenant } from "@/lib/tenant-auth";
 
-import users from "./mockUsers";
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
+import { UsersRolesTable, type TenantUserRow } from "./users-table";
 
-export default function Page() {
-  const [query, setQuery] = React.useState("");
-  const [role, setRole] = React.useState("all");
-  const [status, setStatus] = React.useState("all");
+export default async function Page() {
+  const { tenant } = await requireActiveTenant();
 
-  const roles = React.useMemo(
-    () => Array.from(new Set(users.map((u) => u.role))).sort(),
-    [],
-  );
-  const statuses = React.useMemo(
-    () => Array.from(new Set(users.map((u) => u.status))).sort(),
-    [],
-  );
+  const tenantUsers = await db.query.users.findMany({
+    where: eq(users.tenantId, tenant.id),
+    columns: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+    },
+    orderBy: [desc(users.createdAt)],
+  });
 
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return users.filter((u) => {
-      if (role !== "all" && u.role !== role) return false;
-      if (status !== "all" && u.status !== status) return false;
-      if (!q) return true;
-      return (
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.team.toLowerCase().includes(q)
-      );
-    });
-  }, [query, role, status]);
+  const rows: TenantUserRow[] = tenantUsers.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    status: tenant.status === "Active" ? "Active" : "Suspended",
+    team: null,
+    createdAt: u.createdAt.toISOString().split("T")[0],
+  }));
 
   return (
     <SidebarProvider
@@ -60,7 +43,7 @@ export default function Page() {
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
           "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
+        } as CSSProperties
       }
     >
       <AppSidebar variant="inset" sidedebardata={sidebarData} />
@@ -74,7 +57,7 @@ export default function Page() {
                   <div>
                     <h2 className="text-lg font-semibold">Users & Roles</h2>
                     <p className="text-sm text-muted-foreground">
-                      Manage tenant users and role access.
+                      {tenant.name} • Manage tenant users and access.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -84,90 +67,7 @@ export default function Page() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-2 w-full md:w-1/2">
-                    <input
-                      className="w-full rounded-md border border-input px-3 py-2"
-                      placeholder="Search name, email or team..."
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={role} onValueChange={(v) => setRole(v)}>
-                      <SelectTrigger size="sm">
-                        <SelectValue>
-                          {role === "all" ? "All roles" : role}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All roles</SelectItem>
-                        {roles.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={status} onValueChange={(v) => setStatus(v)}>
-                      <SelectTrigger size="sm">
-                        <SelectValue>
-                          {status === "all" ? "All statuses" : status}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        {statuses.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="rounded-md border bg-card p-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Team</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Created</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((u) => (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">
-                            {u.name}
-                          </TableCell>
-                          <TableCell>{u.role}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                u.status === "Active" ? "default" : "secondary"
-                              }
-                            >
-                              {u.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{u.team}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {u.email}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {u.createdAt}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <UsersRolesTable users={rows} />
               </div>
             </div>
           </div>

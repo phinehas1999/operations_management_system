@@ -34,9 +34,17 @@ const authConfig = {
 
         const user = await db.query.users.findFirst({
           where: eq(users.email, email),
+          with: { tenant: true },
         });
 
         if (!user || !user.password) return null;
+
+        // Only allow sign-in for active tenant members (superadmins bypass tenant checks)
+        if (!user.isSuperAdmin) {
+          if (!user.tenant || user.tenant.status !== "Active") {
+            return null;
+          }
+        }
 
         const valid = await verify(user.password, password);
         if (!valid) return null;

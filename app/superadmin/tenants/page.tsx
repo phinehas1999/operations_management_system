@@ -84,6 +84,8 @@ export default function Page() {
   const [planField, setPlanField] = React.useState("");
   const [seatsField, setSeatsField] = React.useState<number>(1);
   const [adminEmailField, setAdminEmailField] = React.useState("");
+  const [adminPasswordField, setAdminPasswordField] = React.useState("");
+  const [adminNameField, setAdminNameField] = React.useState("");
   const [monthlyRevenueField, setMonthlyRevenueField] =
     React.useState<number>(0);
   const [statusField, setStatusField] = React.useState<string>("Active");
@@ -419,6 +421,29 @@ export default function Page() {
                           </div>
 
                           <div>
+                            <Label>Admin name</Label>
+                            <Input
+                              value={adminNameField}
+                              onChange={(e) =>
+                                setAdminNameField(e.target.value)
+                              }
+                              placeholder="Jane Admin"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>Admin password</Label>
+                            <Input
+                              type="password"
+                              value={adminPasswordField}
+                              onChange={(e) =>
+                                setAdminPasswordField(e.target.value)
+                              }
+                              placeholder="Set a secure password"
+                            />
+                          </div>
+
+                          <div>
                             <Label>Monthly revenue</Label>
                             <Input
                               type="number"
@@ -449,6 +474,23 @@ export default function Page() {
                               setCreating(true);
                               setError(null);
                               try {
+                                const trimmedName = nameField.trim();
+                                const trimmedSlug = slugField
+                                  .trim()
+                                  .toLowerCase();
+                                const trimmedEmail = adminEmailField.trim();
+                                const trimmedAdminName = adminNameField.trim();
+                                const trimmedPassword =
+                                  adminPasswordField.trim();
+
+                                if (!trimmedName || !trimmedSlug) {
+                                  throw new Error("Name and slug are required");
+                                }
+                                if (!trimmedEmail || !trimmedPassword) {
+                                  throw new Error(
+                                    "Admin email and password are required",
+                                  );
+                                }
                                 const res = await fetch(
                                   "/api/superadmin/tenants",
                                   {
@@ -457,12 +499,14 @@ export default function Page() {
                                       "Content-Type": "application/json",
                                     },
                                     body: JSON.stringify({
-                                      name: nameField,
-                                      slug: slugField,
+                                      name: trimmedName,
+                                      slug: trimmedSlug,
                                       planId: planField || null,
                                       status: statusField,
                                       seats: Number(seatsField || 1),
-                                      adminEmail: adminEmailField || null,
+                                      adminEmail: trimmedEmail || null,
+                                      adminPassword: trimmedPassword,
+                                      adminName: trimmedAdminName || null,
                                       monthlyRevenue: Number(
                                         monthlyRevenueField || 0,
                                       ),
@@ -492,6 +536,8 @@ export default function Page() {
                                 setPlanField("");
                                 setSeatsField(1);
                                 setAdminEmailField("");
+                                setAdminPasswordField("");
+                                setAdminNameField("");
                                 setMonthlyRevenueField(0);
                               } catch (err: any) {
                                 console.error(err);
