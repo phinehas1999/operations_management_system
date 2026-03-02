@@ -173,3 +173,37 @@ export async function PATCH(req: Request) {
     );
   }
 }
+
+// Return tenant users for client selects
+export async function GET(req: Request) {
+  try {
+    const { session, tenant, response } = await requireTenantApi();
+    if (response) return response;
+    if (!tenant)
+      return NextResponse.json({ error: "Tenant required" }, { status: 403 });
+
+    const url = new URL(req.url);
+    const role = url.searchParams.get("role") ?? undefined;
+
+    let usersList;
+    if (role) {
+      usersList = await db
+        .select({ id: users.id, name: users.name, role: users.role })
+        .from(users)
+        .where(and(eq(users.tenantId, tenant.id), eq(users.role, role)));
+    } else {
+      usersList = await db
+        .select({ id: users.id, name: users.name, role: users.role })
+        .from(users)
+        .where(eq(users.tenantId, tenant.id));
+    }
+
+    return NextResponse.json({ success: true, users: usersList });
+  } catch (err) {
+    console.error("GET /api/admin/users error", err);
+    return NextResponse.json(
+      { error: "Failed to list users" },
+      { status: 500 },
+    );
+  }
+}

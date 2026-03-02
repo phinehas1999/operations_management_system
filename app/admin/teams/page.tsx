@@ -1,6 +1,3 @@
-"use client";
-
-import * as React from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -14,23 +11,40 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import TeamMembersMenu from "./team-members-menu";
+import TeamRowActions from "./team-row-actions";
 
-import teams from "./mockTeams";
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
+import AddTeamModal from "./add-team-modal";
 
-export default function Page() {
-  const [query, setQuery] = React.useState("");
+import { requireActiveTenant } from "@/lib/tenant-auth";
+import { db } from "@/db/client";
+import { teams } from "@/db/adminSchema";
+import { eq } from "drizzle-orm";
 
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return teams.filter((t) => {
-      if (!q) return true;
-      return (
-        t.name.toLowerCase().includes(q) || t.lead.toLowerCase().includes(q)
-      );
-    });
-  }, [query]);
+export default async function Page() {
+  const { tenant } = await requireActiveTenant();
+
+  let rows = [] as any[];
+  try {
+    rows = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        description: teams.description,
+        createdAt: teams.createdAt,
+      })
+      .from(teams)
+      .where(eq(teams.tenantId, tenant.id))
+      .orderBy(teams.name);
+  } catch (err: any) {
+    console.error("Teams query failed", err);
+    throw new Error(
+      "Failed to load teams. Ensure the 'teams' table exists and DB migrations have been applied. Original: " +
+        (err?.message ?? String(err)),
+    );
+  }
 
   return (
     <SidebarProvider
@@ -56,9 +70,7 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Team
-                    </Button>
+                    <AddTeamModal />
                   </div>
                 </div>
 
@@ -67,8 +79,6 @@ export default function Page() {
                     <input
                       className="w-full rounded-md border border-input px-3 py-2"
                       placeholder="Search teams or leads..."
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
                 </div>
@@ -78,31 +88,27 @@ export default function Page() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Lead</TableHead>
-                        <TableHead>Members</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Description</TableHead>
                         <TableHead>Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((t) => (
+                      {rows.map((t) => (
                         <TableRow key={t.id}>
                           <TableCell className="font-medium">
                             {t.name}
                           </TableCell>
-                          <TableCell>{t.lead}</TableCell>
-                          <TableCell>{t.members}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                t.status === "Active" ? "default" : "secondary"
-                              }
-                            >
-                              {t.status}
-                            </Badge>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {t.description ?? "—"}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {t.createdAt}
+                            {t.createdAt
+                              ? new Date(t.createdAt).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <TeamRowActions teamId={t.id} />
                           </TableCell>
                         </TableRow>
                       ))}

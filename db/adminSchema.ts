@@ -20,6 +20,10 @@ export const teams = pgTable("teams", {
     .references(() => tenants.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
+  // optional manager assigned to the team
+  managerId: uuid("manager_id")
+    .references(() => users.id)
+    .$type<string | null>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
@@ -35,6 +39,8 @@ export const userTeams = pgTable(
     teamId: uuid("team_id")
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
+    // role of the user within the team (e.g. 'MANAGER' | 'STAFF')
+    role: text("role").default("STAFF").notNull(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.teamId] }),
