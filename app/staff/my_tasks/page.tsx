@@ -22,7 +22,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import tasks from "./mockMyTasks";
+import { useSession } from "next-auth/react";
+// import tasks from "./mockMyTasks";
+
+type TaskRow = {
+  id: string;
+  title: string;
+  priority: string;
+  status: string;
+  createdBy?: string | null;
+  assignedBy?: string;
+  dueAt?: string | null;
+};
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
@@ -30,15 +41,77 @@ export default function Page() {
   const [query, setQuery] = React.useState("");
   const [status, setStatus] = React.useState("all");
   const [priority, setPriority] = React.useState("all");
+  const { data: session } = useSession();
+  const [tasks, setTasks] = React.useState<TaskRow[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const statuses = React.useMemo(
     () => Array.from(new Set(tasks.map((t) => t.status))).sort(),
-    [],
+    [tasks],
   );
   const priorities = React.useMemo(
     () => Array.from(new Set(tasks.map((t) => t.priority))).sort(),
-    [],
+    [tasks],
   );
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function load() {
+      if (!session?.user?.id) return;
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/tasks?assigneeId=${encodeURIComponent(
+            session.user.id,
+          )}&assigneeType=USER`,
+        );
+        if (!mounted) return;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError(body?.error || "Failed to load tasks");
+          setTasks([]);
+          return;
+        }
+        const json = await res.json();
+        const rows = Array.isArray(json?.tasks) ? json.tasks : [];
+
+        // fetch tenant users to map createdBy -> name
+        const uRes = await fetch(`/api/admin/users`);
+        const uJson = uRes.ok ? await uRes.json().catch(() => ({})) : {};
+        const users = Array.isArray(uJson?.users) ? uJson.users : [];
+        const userMap: Record<string, any> = {};
+        users.forEach((u: any) => (userMap[String(u.id)] = u));
+
+        const out: TaskRow[] = rows.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          priority: r.priority,
+          status: r.status,
+          createdBy: r.createdBy || null,
+          assignedBy: r.createdBy
+            ? userMap[String(r.createdBy)]?.name || "—"
+            : "—",
+          dueAt: r.dueAt || null,
+        }));
+
+        if (!mounted) return;
+        setTasks(out);
+        setError(null);
+      } catch (err: any) {
+        if (!mounted) return;
+        setError(err?.message || String(err));
+        setTasks([]);
+      } finally {
+        if (!mounted) return;
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -46,9 +119,11 @@ export default function Page() {
       if (status !== "all" && t.status !== status) return false;
       if (priority !== "all" && t.priority !== priority) return false;
       if (!q) return true;
-      return t.title.toLowerCase().includes(q);
+      return String(t.title || "")
+        .toLowerCase()
+        .includes(q);
     });
-  }, [query, status, priority]);
+  }, [query, status, priority, tasks]);
 
   return (
     <SidebarProvider
@@ -148,9 +223,9 @@ export default function Page() {
                           <TableCell>
                             <Badge
                               variant={
-                                t.status === "Completed"
+                                t.status?.toLowerCase() === "completed"
                                   ? "default"
-                                  : t.status === "Review"
+                                  : t.status?.toLowerCase() === "review"
                                     ? "secondary"
                                     : "outline"
                               }
@@ -158,9 +233,11 @@ export default function Page() {
                               {t.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>{t.assignedTo}</TableCell>
+                          <TableCell>{t.assignedBy || "—"}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {t.dueDate}
+                            {t.dueAt
+                              ? new Date(t.dueAt).toLocaleDateString()
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       ))}

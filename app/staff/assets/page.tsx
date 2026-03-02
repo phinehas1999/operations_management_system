@@ -15,22 +15,70 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import assets from "./mockAssets";
+// Fetch assets from tenant-scoped API instead of mock data
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
 export default function Page() {
   const [query, setQuery] = React.useState("");
 
+  const [selectedCategory, setSelectedCategory] = React.useState("__all");
+  const [assets, setAssets] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    fetch("/api/admin/assets")
+      .then((r) => {
+        if (!r.ok) throw new Error(`${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        if (!mounted) return;
+        setAssets(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(String(err));
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     return assets.filter((a) => {
+      if (selectedCategory && selectedCategory !== "__all") {
+        const cat = String(a.category || "");
+        if (cat !== selectedCategory) return false;
+      }
       if (!q) return true;
       return (
-        a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+        String(a.name || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(a.category || "")
+          .toLowerCase()
+          .includes(q)
       );
     });
-  }, [query]);
+  }, [query, assets, selectedCategory]);
+
+  const categories = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const a of assets) {
+      if (a.category) set.add(String(a.category));
+    }
+    return Array.from(set).sort((x, y) => x.localeCompare(y));
+  }, [assets]);
 
   return (
     <SidebarProvider
@@ -74,38 +122,59 @@ export default function Page() {
                 </div>
 
                 <div className="rounded-md border bg-card p-4">
+                  {loading && <div className="py-2">Loading assets…</div>}
+                  {error && (
+                    <div className="text-destructive text-sm py-2">
+                      Error loading assets: {error}
+                    </div>
+                  )}
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Quantity</TableHead>
+                        <TableHead>Minimum</TableHead>
+                        <TableHead>Team</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Updated</TableHead>
+                        <TableHead>Created</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((a) => (
-                        <TableRow key={a.id}>
-                          <TableCell className="font-medium">
-                            {a.name}
-                          </TableCell>
-                          <TableCell>{a.category}</TableCell>
-                          <TableCell>{a.quantity}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                a.status === "Low" ? "destructive" : "default"
-                              }
-                            >
-                              {a.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {a.updatedAt}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filtered.map((a) => {
+                        const qty = Number(a.quantity || 0);
+                        const min = Number(
+                          a.minimumThreshold ?? a.minimum_threshold ?? 0,
+                        );
+                        const persistedStatus = String(
+                          a.status ?? a.status ?? "",
+                        );
+                        const status =
+                          persistedStatus || (qty <= 0 ? "Inactive" : "Active");
+
+                        const badgeVariant =
+                          status === "Inactive" ? "destructive" : "default";
+
+                        return (
+                          <TableRow key={a.id}>
+                            <TableCell className="font-medium">
+                              {a.name}
+                            </TableCell>
+                            <TableCell>{a.category}</TableCell>
+                            <TableCell>{qty}</TableCell>
+                            <TableCell>{min}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {a.teamId ?? a.team_id ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={badgeVariant}>{status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {a.createdAt ?? a.created_at}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
