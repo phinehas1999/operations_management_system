@@ -27,7 +27,13 @@ export async function GET(req: Request, ctx: any) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const rows = await db
-      .select({ id: users.id, name: users.name, role: userTeams.role })
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+        role: userTeams.role,
+      })
       .from(userTeams)
       .leftJoin(users, eq(users.id, userTeams.userId))
       .where(eq(userTeams.teamId, teamId));

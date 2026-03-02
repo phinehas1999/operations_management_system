@@ -15,22 +15,102 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import team from "./mockTeam";
+import { useSession } from "next-auth/react";
+import * as api from "next/navigation";
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
 export default function Page() {
+  const { data: session } = useSession();
   const [query, setQuery] = React.useState("");
+  const [members, setMembers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function load() {
+      if (!session?.user?.id) return;
+      setLoading(true);
+      try {
+        const res = await fetch("/api/admin/teams");
+        if (!mounted) return;
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setError(body?.error || "Failed to load teams");
+          setMembers([]);
+          return;
+        }
+        const rows = await res.json();
+        const myTeams = (Array.isArray(rows) ? rows : []).filter(
+          (t: any) => String(t.managerId) === String(session.user.id),
+        );
+
+        // fetch members for each team and aggregate
+        const membersById: Record<string, any> = {};
+        await Promise.all(
+          myTeams.map(async (t: any) => {
+            try {
+              const mRes = await fetch(`/api/admin/teams/${t.id}/members`);
+              if (!mRes.ok) return;
+              const mJson = await mRes.json();
+              const ms = Array.isArray(mJson?.members) ? mJson.members : [];
+              ms.forEach((m: any) => {
+                const id = String(m.id);
+                if (!membersById[id]) {
+                  membersById[id] = {
+                    id: m.id,
+                    name: m.name,
+                    email: m.email,
+                    role: m.role,
+                    teams: [t.name],
+                    createdAt: m.createdAt,
+                  };
+                } else {
+                  if (!membersById[id].teams.includes(t.name)) {
+                    membersById[id].teams.push(t.name);
+                  }
+                }
+              });
+            } catch (e) {
+              return;
+            }
+          }),
+        );
+
+        if (!mounted) return;
+        setMembers(Object.values(membersById));
+        setError(null);
+      } catch (err: any) {
+        if (!mounted) return;
+        setError(err?.message || String(err));
+        setMembers([]);
+      } finally {
+        if (!mounted) return;
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    return team.filter((t) => {
+    return members.filter((m) => {
       if (!q) return true;
       return (
-        t.name.toLowerCase().includes(q) || t.lead.toLowerCase().includes(q)
+        String(m.name || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(m.email || "")
+          .toLowerCase()
+          .includes(q) ||
+        (Array.isArray(m.teams) && m.teams.join(", ").toLowerCase().includes(q))
       );
     });
-  }, [query]);
+  }, [query, members]);
 
   return (
     <SidebarProvider
@@ -56,9 +136,7 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Assignment
-                    </Button>
+                    {/* New Assignment removed for managers */}
                   </div>
                 </div>
 
@@ -78,31 +156,29 @@ export default function Page() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Lead</TableHead>
-                        <TableHead>Members</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Teams</TableHead>
+                        <TableHead>Joined</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((t) => (
-                        <TableRow key={t.id}>
+                      {filtered.map((m) => (
+                        <TableRow key={m.id}>
                           <TableCell className="font-medium">
-                            {t.name}
+                            {m.name}
                           </TableCell>
-                          <TableCell>{t.lead}</TableCell>
-                          <TableCell>{t.members}</TableCell>
+                          <TableCell>{m.email || "—"}</TableCell>
+                          <TableCell>{m.role || "—"}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                t.status === "Active" ? "default" : "secondary"
-                              }
-                            >
-                              {t.status}
-                            </Badge>
+                            {Array.isArray(m.teams) && m.teams.length > 0
+                              ? m.teams.join(", ")
+                              : "—"}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {t.createdAt}
+                            {m.createdAt
+                              ? new Date(m.createdAt).toLocaleDateString()
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       ))}
