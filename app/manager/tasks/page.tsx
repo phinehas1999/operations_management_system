@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSession } from "next-auth/react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -13,6 +14,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import TaskFormModal from "./task-form-modal";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -22,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import tasks from "./mockTasks";
+// replaced mock data with real API-driven tasks
 import siteHeaderData from "../constants/siteheaderdata";
 import sidebarData from "../constants/sidebardata";
 
@@ -31,13 +33,19 @@ export default function Page() {
   const [status, setStatus] = React.useState("all");
   const [priority, setPriority] = React.useState("all");
 
+  const { data: session } = useSession();
+
+  const [tasks, setTasks] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
   const statuses = React.useMemo(
     () => Array.from(new Set(tasks.map((t) => t.status))).sort(),
-    [],
+    [tasks],
   );
   const priorities = React.useMemo(
     () => Array.from(new Set(tasks.map((t) => t.priority))).sort(),
-    [],
+    [tasks],
   );
 
   const filtered = React.useMemo(() => {
@@ -47,11 +55,54 @@ export default function Page() {
       if (priority !== "all" && t.priority !== priority) return false;
       if (!q) return true;
       return (
-        t.title.toLowerCase().includes(q) ||
-        t.assignedTo.toLowerCase().includes(q)
+        (t.title || "").toLowerCase().includes(q) ||
+        (t.assigneeName || t.assignedTo || "").toLowerCase().includes(q)
       );
     });
-  }, [query, status, priority]);
+  }, [query, status, priority, tasks]);
+
+  const loadTasks = React.useCallback(async () => {
+    setError(null);
+    if (!session?.user?.id) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("assigneeId", session.user.id);
+      params.set("assigneeType", "USER");
+      if (status) params.set("status", status);
+      if (priority) params.set("priority", priority);
+
+      const res = await fetch(`/api/admin/tasks?${params.toString()}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json?.error || "Failed to load tasks");
+        setTasks([]);
+        return;
+      }
+      const json = await res.json();
+      const rows = Array.isArray(json?.tasks) ? json.tasks : [];
+      const mapped = rows.map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        priority: r.priority,
+        status: r.status,
+        assignedTo: r.assigneeName || "",
+        assigneeName: r.assigneeName || "",
+        dueDate: r.dueAt ? new Date(r.dueAt).toLocaleDateString() : "-",
+      }));
+      setTasks(mapped);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load tasks");
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.id, status, priority]);
+
+  React.useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   return (
     <SidebarProvider
@@ -77,9 +128,15 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Task
-                    </Button>
+                    <TaskFormModal
+                      mode="create"
+                      onSaved={loadTasks}
+                      trigger={
+                        <Button size="sm" variant="default">
+                          New Task
+                        </Button>
+                      }
+                    />
                   </div>
                 </div>
 
