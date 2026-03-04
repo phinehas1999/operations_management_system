@@ -38,6 +38,11 @@ const sidebarData = {
       icon: "report",
     },
     {
+      title: "Billing",
+      url: "/admin/billing",
+      icon: "database",
+    },
+    {
       title: "Settings",
       url: "/admin/settings",
       icon: "settings",
