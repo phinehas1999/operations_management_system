@@ -34,7 +34,7 @@ export type TenantUserRow = {
   name: string | null;
   email: string;
   role: Role;
-  team: string | null;
+  // team: string | null;
   createdAt: string;
 };
 
@@ -54,8 +54,8 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
       if (!q) return true;
       return (
         (u.name || "").toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.team || "").toLowerCase().includes(q)
+        u.email.toLowerCase().includes(q)
+        // (u.team || "").toLowerCase().includes(q)
       );
     });
   }, [query, role, users]);
@@ -92,7 +92,7 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
         <div className="flex items-center gap-2 w-full md:w-1/2">
           <input
             className="w-full rounded-md border border-input px-3 py-2"
-            placeholder="Search name, email or team..."
+            placeholder="Search name or email..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -123,7 +123,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead>Team</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="sr-only">Actions</TableHead>
@@ -134,7 +133,6 @@ export function UsersRolesTable({ users }: { users: TenantUserRow[] }) {
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.name || "—"}</TableCell>
                 <TableCell>{u.role}</TableCell>
-                <TableCell>{u.team || "—"}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {u.email}
                 </TableCell>
