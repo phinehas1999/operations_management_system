@@ -23,21 +23,12 @@ export async function GET(req: Request, ctx: any) {
         name: teams.name,
         description: teams.description,
         managerId: teams.managerId,
+        tenantId: teams.tenantId,
       })
       .from(teams)
       .where(eq(teams.id, teamId));
-    if (!t || t.tenantId === undefined) {
-      // ensure team exists and belongs to tenant via separate check
-      const teamCheck = await db
-        .select({ tenantId: teams.tenantId })
-        .from(teams)
-        .where(eq(teams.id, teamId));
-      if (
-        !teamCheck ||
-        teamCheck.length === 0 ||
-        teamCheck[0].tenantId !== tenant.id
-      )
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!t || t.tenantId !== tenant.id) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const members = await db

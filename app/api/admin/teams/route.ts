@@ -241,12 +241,12 @@ export async function PATCH(req: Request) {
       for (const uid of Array.from(newSet)) {
         const role = uid === patch.managerId ? "MANAGER" : "STAFF";
         if (!existingMap.has(uid)) {
-          await db.insert(userTeams).values({ userId: uid, teamId: id, role });
+          await db.insert(userTeams).values({ userId: String(uid), teamId: String(id), role });
         } else if (existingMap.get(uid) !== role) {
           await db
             .update(userTeams)
             .set({ role })
-            .where(and(eq(userTeams.userId, uid), eq(userTeams.teamId, id)));
+            .where(and(eq(userTeams.userId, String(uid)), eq(userTeams.teamId, String(id))));
         }
       }
     }

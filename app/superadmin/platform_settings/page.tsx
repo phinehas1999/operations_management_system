@@ -95,7 +95,7 @@ export default function Page() {
                           {s.type === "text" && (
                             <input
                               className="w-full rounded-md border border-input px-3 py-2"
-                              value={s.value}
+                              value={String(s.value ?? "")}
                               onChange={(e) =>
                                 updateSetting(s.id, e.target.value)
                               }
@@ -120,7 +120,7 @@ export default function Page() {
                           {s.type === "list" && (
                             <input
                               className="w-full rounded-md border border-input px-3 py-2"
-                              value={(s.value || []).join(",")}
+                              value={Array.isArray(s.value) ? s.value.join(",") : String(s.value ?? "")}
                               onChange={(e) =>
                                 updateSetting(
                                   s.id,

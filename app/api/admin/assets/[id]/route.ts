@@ -4,10 +4,8 @@ import { eq } from "drizzle-orm";
 import { db, assets } from "@/db/client";
 import { requireTenantApi } from "@/lib/tenant-auth";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function GET(_req: Request, context: any) {
+  const params = context?.params ?? {};
   const { tenant, response } = await requireTenantApi();
   if (response) return response;
 
@@ -18,10 +16,8 @@ export async function GET(
   return NextResponse.json(row);
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function PATCH(req: Request, context: any) {
+  const params = context?.params ?? {};
   const { tenant, response } = await requireTenantApi();
   if (response) return response;
 
@@ -50,10 +46,8 @@ export async function PATCH(
   return NextResponse.json(updated[0]);
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function DELETE(_req: Request, context: any) {
+  const params = context?.params ?? {};
   const { tenant, response } = await requireTenantApi();
   if (response) return response;
 

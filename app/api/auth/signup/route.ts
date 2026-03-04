@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   const tenantSlug = slugify(companyName);
   const [tenant] = await db
     .insert(tenants)
-    .values({ name: companyName, slug: tenantSlug, plan: "standard" })
+    .values({ name: companyName, slug: tenantSlug })
     .returning();
 
   const passwordHash = await hash(password);

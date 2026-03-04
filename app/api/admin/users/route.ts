@@ -190,7 +190,7 @@ export async function GET(req: Request) {
       usersList = await db
         .select({ id: users.id, name: users.name, role: users.role })
         .from(users)
-        .where(and(eq(users.tenantId, tenant.id), eq(users.role, role)));
+        .where(and(eq(users.tenantId, tenant.id), eq(users.role, role as Role)));
     } else {
       usersList = await db
         .select({ id: users.id, name: users.name, role: users.role })
