@@ -62,8 +62,11 @@ export function SectionCards({
 
   return (
     <div className={colsClass}>
-      {items.map((item) => (
-        <Card key={item.title} className="@container/card">
+      {items.map((item, index) => (
+        <Card
+          key={`${item.description}-${item.title}-${index}`}
+          className="@container/card"
+        >
           <CardHeader>
             <CardDescription>{item.description}</CardDescription>
             <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
