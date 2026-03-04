@@ -153,14 +153,19 @@ export function ChartAreaInteractive({
   React.useEffect(() => setMounted(true), []);
 
   React.useEffect(() => {
-    if (isMobile) {
-      setTimeRange("7d");
-    }
+    if (isMobile) setTimeRange("7d");
   }, [isMobile]);
+
+  const referenceDate = React.useMemo(() => {
+    const times = (data || [])
+      .map((d) => new Date(d.date).getTime())
+      .filter((t) => Number.isFinite(t));
+    if (!times.length) return new Date();
+    return new Date(Math.max(...times));
+  }, [data]);
 
   const filteredData = data.filter((item) => {
     const date = new Date(item.date);
-    const referenceDate = new Date("2024-06-30");
     let daysToSubtract = 90;
     if (timeRange === "30d") {
       daysToSubtract = 30;
@@ -181,12 +186,18 @@ export function ChartAreaInteractive({
             (k) => k !== "visitors",
           );
           const firstKey = seriesKeys[0];
-          const total = firstKey
-            ? filteredData.reduce(
-                (s, d) => s + Number((d as any)[firstKey] ?? 0),
-                0,
-              )
-            : 0;
+
+          // Show the latest data-point's value for the selected range (not the sum)
+          let total = 0;
+          if (firstKey && filteredData.length) {
+            for (let i = filteredData.length - 1; i >= 0; i--) {
+              const v = Number((filteredData[i] as any)[firstKey]);
+              if (Number.isFinite(v)) {
+                total = v;
+                break;
+              }
+            }
+          }
 
           return (
             <CardTitle>
@@ -247,7 +258,10 @@ export function ChartAreaInteractive({
           config={config}
           className="aspect-auto h-[250px] w-full"
         >
-          <AreaChart data={filteredData}>
+          <AreaChart
+            data={filteredData}
+            margin={{ top: 12, right: 6, left: 0, bottom: 12 }}
+          >
             <defs>
               {Object.keys(config)
                 .filter((k) => k !== "visitors")
@@ -292,12 +306,12 @@ export function ChartAreaInteractive({
               cursor={false}
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
+                  labelFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
-                    });
-                  }}
+                    })
+                  }
                   indicator="dot"
                 />
               }
@@ -308,7 +322,7 @@ export function ChartAreaInteractive({
                 <Area
                   key={key}
                   dataKey={key}
-                  type="natural"
+                  type="monotone"
                   fill={`url(#fill-${key})`}
                   stroke={`var(--color-${key})`}
                   stackId={key}

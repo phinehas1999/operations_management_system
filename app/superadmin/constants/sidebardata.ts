@@ -32,11 +32,6 @@ const sidebarData = {
       url: "/superadmin/platform_settings",
       icon: "settings",
     },
-    {
-      title: "Audit & Logs",
-      url: "/superadmin/audit_logs",
-      icon: "report",
-    },
   ],
   navClouds: [
     {
@@ -59,27 +54,13 @@ const sidebarData = {
     },
   ],
   navSecondary: [
-    {
-      title: "Get Help",
-      url: "/superadmin/get_help",
-      icon: "help",
-    },
-    {
-      title: "Search",
-      url: "/superadmin/search",
-      icon: "search",
-    },
+    
   ],
   documents: [
     {
       name: "Tenant Registry",
-      url: "/superadmin/tenant_registry",
+      url: "/superadmin/tenants",
       icon: "database",
-    },
-    {
-      name: "Billing Reports",
-      url: "/superadmin/billing_reports",
-      icon: "report",
     },
     {
       name: "Platform Docs",

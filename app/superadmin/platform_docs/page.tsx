@@ -11,6 +11,7 @@ import sidebarData from "../constants/sidebardata";
 
 export default function Page() {
   const [query, setQuery] = React.useState("");
+  const [selectedDoc, setSelectedDoc] = React.useState(docs[0] ?? null);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,11 +30,6 @@ export default function Page() {
     const pad = (n: number) => n.toString().padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
-
-  function viewDoc(content: string) {
-    // lightweight viewer
-    alert(content);
-  }
 
   return (
     <SidebarProvider
@@ -57,11 +53,6 @@ export default function Page() {
                     <p className="text-sm text-muted-foreground">
                       Internal documentation for platform operators.
                     </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
-                      New Doc
-                    </Button>
                   </div>
                 </div>
 
@@ -93,7 +84,7 @@ export default function Page() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => viewDoc(d.content)}
+                            onClick={() => setSelectedDoc(d)}
                           >
                             View
                           </Button>
@@ -101,6 +92,35 @@ export default function Page() {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-6 space-y-4 rounded-lg border p-4">
+                  <h3 className="text-base font-semibold">Document Viewer</h3>
+                  {selectedDoc ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-semibold">Title:</span>{" "}
+                        {selectedDoc.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-semibold">Author:</span>{" "}
+                        {selectedDoc.author}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-semibold">Last updated:</span>{" "}
+                        {formatDate(selectedDoc.updatedAt)}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedDoc.summary}
+                      </p>
+                      <div className="rounded-md bg-muted/30 p-3 text-sm">
+                        {selectedDoc.content}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Select a document to view its details and content.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
