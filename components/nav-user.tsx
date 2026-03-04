@@ -27,6 +27,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
 
 export function NavUser({
   user,
@@ -39,6 +40,8 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const [mounted, setMounted] = React.useState(false);
+  const pathname = usePathname();
+  const isSuperadminPath = pathname?.startsWith("/superadmin");
 
   React.useEffect(() => setMounted(true), []);
 
@@ -87,18 +90,27 @@ export function NavUser({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <IconUserCircle />
-                  Account
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <IconCreditCard />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <IconNotification />
-                  Notifications
-                </DropdownMenuItem>
+                {isSuperadminPath ? (
+                  <DropdownMenuItem>
+                    <IconCreditCard />
+                    Billing
+                  </DropdownMenuItem>
+                ) : (
+                  <>
+                    <DropdownMenuItem>
+                      <IconUserCircle />
+                      Account
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <IconCreditCard />
+                      Billing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <IconNotification />
+                      Notifications
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
