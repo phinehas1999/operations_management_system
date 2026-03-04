@@ -16,6 +16,8 @@ import chartAreaData from "./constants/chartAreadata";
 export default function Page() {
   const [cards, setCards] = React.useState<SectionCard[] | null>(null);
   const [loadingCards, setLoadingCards] = React.useState(true);
+  const [chartData, setChartData] = React.useState<any[] | null>(null);
+  const [chartConfig, setChartConfig] = React.useState<any | null>(null);
 
   React.useEffect(() => {
     let mounted = true;
@@ -46,6 +48,51 @@ export default function Page() {
         const tasksCount = Array.isArray(tasksBody?.tasks)
           ? tasksBody.tasks.length
           : 0;
+        // build timeseries for tasks grouped by date and status
+        const tasks = Array.isArray(tasksBody?.tasks) ? tasksBody.tasks : [];
+        // determine reference date (max createdAt) or today
+        const times = tasks
+          .map((t: any) => new Date(t.createdAt).getTime())
+          .filter((t: number) => Number.isFinite(t));
+        const refDate = times.length
+          ? new Date(Math.max(...times))
+          : new Date();
+        const days = 90; // build 90 days window (chart component filters further)
+        const start = new Date(refDate);
+        start.setDate(start.getDate() - (days - 1));
+
+        // initialize map of date -> counts
+        const map: Record<
+          string,
+          { date: string; completed: number; review: number; pending: number }
+        > = {};
+        for (
+          let d = new Date(start);
+          d <= refDate;
+          d.setDate(d.getDate() + 1)
+        ) {
+          const key = d.toISOString().slice(0, 10);
+          map[key] = { date: key, completed: 0, review: 0, pending: 0 };
+        }
+
+        for (const t of tasks as any[]) {
+          const dt = t?.createdAt ? new Date(t.createdAt) : null;
+          if (!dt || isNaN(dt.getTime())) continue;
+          const key = dt.toISOString().slice(0, 10);
+          if (!map[key]) continue; // outside window
+          const status = (t.status || "").toString().toLowerCase();
+          if (status === "completed") map[key].completed += 1;
+          else if (status === "review") map[key].review += 1;
+          else if (status === "pending") map[key].pending += 1;
+        }
+
+        const seriesData = Object.values(map);
+
+        const config = {
+          completed: { label: "Completed", color: "#22c55e" }, // green-500
+          review: { label: "Under Review", color: "#f59e42" }, // orange-400
+          pending: { label: "Pending", color: "#ef4444" }, // red-500
+        };
         const assets = Array.isArray(assetsBody) ? assetsBody : [];
         const totalAssets = assets.length;
         const inactiveAssets = assets.filter((asset) =>
@@ -95,6 +142,8 @@ export default function Page() {
 
         if (!mounted) return;
         setCards(next);
+        setChartData(seriesData);
+        setChartConfig(config);
       } catch (err) {
         if (!mounted) return;
         setCards([
@@ -160,8 +209,9 @@ export default function Page() {
               <SectionCards items={cards ?? []} loading={loadingCards} />
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive
-                  data={chartAreaData.data}
-                  config={chartAreaData.config}
+                  data={chartData ?? chartAreaData.data}
+                  config={chartConfig ?? chartAreaData.config}
+                  loading={loadingCards || !chartData}
                 />
               </div>
               <DataTable data={data} />

@@ -139,12 +139,16 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 export function ChartAreaInteractive({
   data = chartData,
   config = chartConfig,
+  loading = false,
 }: {
   data?: ChartPoint[];
   config?: ChartConfig;
+  loading?: boolean;
 }) {
   const [mounted, setMounted] = React.useState(false);
   const isMobile = useIsMobile();
@@ -177,17 +181,62 @@ export function ChartAreaInteractive({
     return date >= startDate;
   });
 
+  if (loading) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardTitle>
+            <Skeleton className="h-8 w-64 mb-2" />
+          </CardTitle>
+          <CardDescription>
+            <Skeleton className="h-4 w-40" />
+          </CardDescription>
+          <CardAction>
+            <Skeleton className="h-8 w-40" />
+          </CardAction>
+        </CardHeader>
+        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+          <Skeleton className="h-[250px] w-full rounded-xl" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="@container/card">
       <CardHeader>
-        {/* Title uses the first series label if available */}
+        {/* Title: when chart contains pending + review series show combined incomplete total */}
         {(() => {
+          const hasPending = Object.prototype.hasOwnProperty.call(
+            config,
+            "pending",
+          );
+          const hasReview = Object.prototype.hasOwnProperty.call(
+            config,
+            "review",
+          );
+
+          if (hasPending && hasReview) {
+            const total = filteredData.reduce((acc, d) => {
+              return (
+                acc +
+                Number((d as any).pending || 0) +
+                Number((d as any).review || 0)
+              );
+            }, 0);
+            return (
+              <CardTitle>
+                Incomplete tasks (pending + under review){" "}
+                {total.toLocaleString()}
+              </CardTitle>
+            );
+          }
+
+          // Fallback: show latest value from the first series
           const seriesKeys = Object.keys(config).filter(
             (k) => k !== "visitors",
           );
           const firstKey = seriesKeys[0];
-
-          // Show the latest data-point's value for the selected range (not the sum)
           let total = 0;
           if (firstKey && filteredData.length) {
             for (let i = filteredData.length - 1; i >= 0; i--) {
@@ -198,7 +247,6 @@ export function ChartAreaInteractive({
               }
             }
           }
-
           return (
             <CardTitle>
               {config[firstKey || ""]?.label || "Total"}{" "}
@@ -276,12 +324,12 @@ export function ChartAreaInteractive({
                   >
                     <stop
                       offset="5%"
-                      stopColor={`var(--color-${key})`}
+                      stopColor={config[key]?.color || `var(--color-${key})`}
                       stopOpacity={0.95}
                     />
                     <stop
                       offset="95%"
-                      stopColor={`var(--color-${key})`}
+                      stopColor={config[key]?.color || `var(--color-${key})`}
                       stopOpacity={0.08}
                     />
                   </linearGradient>
@@ -324,7 +372,7 @@ export function ChartAreaInteractive({
                   dataKey={key}
                   type="monotone"
                   fill={`url(#fill-${key})`}
-                  stroke={`var(--color-${key})`}
+                  stroke={config[key]?.color || `var(--color-${key})`}
                   stackId={key}
                 />
               ))}
