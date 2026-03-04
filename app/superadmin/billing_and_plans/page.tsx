@@ -997,11 +997,23 @@ export default function Page() {
 
           <div className="flex flex-col gap-8">
             <Card>
-              <CardHeader>
-                <CardTitle>Recent Invoices</CardTitle>
-                <CardDescription>
-                  A list of recent billing activity.
-                </CardDescription>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Invoices</CardTitle>
+                  <CardDescription>
+                    A list of recent billing activity.
+                  </CardDescription>
+                </div>
+                <div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fetchBillingData()}
+                    title="Refresh Invoices"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
