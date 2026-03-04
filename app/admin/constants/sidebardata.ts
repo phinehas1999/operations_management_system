@@ -32,11 +32,11 @@ const sidebarData = {
       url: "/admin/assets",
       icon: "database",
     },
-    {
-      title: "Reports",
-      url: "/admin/reports",
-      icon: "report",
-    },
+    // {
+    //   title: "Reports",
+    //   url: "/admin/reports",
+    //   icon: "report",
+    // },
     {
       title: "Billing",
       url: "/admin/billing",
@@ -54,18 +54,18 @@ const sidebarData = {
       url: "/admin/get_help",
       icon: "help",
     },
-    {
-      title: "Search",
-      url: "/admin/search",
-      icon: "search",
-    },
+    // {
+    //   title: "Search",
+    //   url: "/admin/search",
+    //   icon: "search",
+    // },
   ],
   documents: [
-    {
-      name: "Task Reports",
-      url: "/admin/reports",
-      icon: "report",
-    },
+    // {
+    //   name: "Task Reports",
+    //   url: "/admin/reports",
+    //   icon: "report",
+    // },
     {
       name: "Asset Inventory",
       url: "/admin/assets",

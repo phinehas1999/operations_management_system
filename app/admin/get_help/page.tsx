@@ -47,9 +47,9 @@ export default function Page() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="default">
+                    {/* <Button size="sm" variant="default">
                       New Ticket
-                    </Button>
+                    </Button> */}
                   </div>
                 </div>
 
