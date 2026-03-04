@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { DataTable } from "@/components/data-table";
+import RecentTasksTable from "@/components/recent-tasks-table";
 import { SectionCards, type SectionCard } from "@/components/section-cards";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -214,7 +215,7 @@ export default function Page() {
                   loading={loadingCards || !chartData}
                 />
               </div>
-              <DataTable data={data} />
+              <RecentTasksTable limit={3} />
             </div>
           </div>
         </div>
