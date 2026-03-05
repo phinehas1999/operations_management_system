@@ -22,11 +22,11 @@ const sidebarData = {
       url: "/manager/assets",
       icon: "database",
     },
-    {
-      title: "Reports",
-      url: "/manager/reports",
-      icon: "report",
-    },
+    // {
+    //   title: "Reports",
+    //   url: "/manager/reports",
+    //   icon: "report",
+    // },
     {
       title: "Team",
       url: "/manager/team",
@@ -34,16 +34,16 @@ const sidebarData = {
     },
   ],
   navSecondary: [
-    {
-      title: "Get Help",
-      url: "/manager/get_help",
-      icon: "help",
-    },
-    {
-      title: "Search",
-      url: "/manager/search",
-      icon: "search",
-    },
+    // {
+    //   title: "Get Help",
+    //   url: "/manager/get_help",
+    //   icon: "help",
+    // },
+    // {
+    //   title: "Search",
+    //   url: "/manager/search",
+    //   icon: "search",
+    // },
   ],
   documents: [
     {
