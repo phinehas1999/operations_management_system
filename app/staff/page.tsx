@@ -50,6 +50,24 @@ export default async function Page() {
     );
   }
 
+  // Fetch chart data for the logged-in staff member and forward cookie for auth
+  const chartUrl = new URL("/api/staff/chart", origin);
+  const chartResponse = await fetch(chartUrl, {
+    cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
+  });
+  const chart: { data?: any[]; config?: any } | null = chartResponse.ok
+    ? await chartResponse.json()
+    : null;
+
+  if (!chartResponse.ok) {
+    console.error(
+      "/api/staff/chart",
+      chartResponse.status,
+      chartResponse.statusText,
+    );
+  }
+
   const numberFormatter = new Intl.NumberFormat("en-US");
   const formatNumber = (value: number) => numberFormatter.format(value);
   const sectionCards: SectionCard[] = [
@@ -105,8 +123,9 @@ export default async function Page() {
               <SectionCards items={sectionCards} loading={!metrics} />
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive
-                  data={chartAreaData.data}
-                  config={chartAreaData.config}
+                  data={chart?.data ?? chartAreaData.data}
+                  config={chart?.config ?? chartAreaData.config}
+                  loading={!chart}
                 />
               </div>
               <DataTable data={data} />

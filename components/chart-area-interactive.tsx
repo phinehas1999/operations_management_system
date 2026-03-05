@@ -168,6 +168,70 @@ export function ChartAreaInteractive({
     return new Date(Math.max(...times));
   }, [data]);
 
+  // Tooltip that shows per-day values and range totals for each series
+  function TooltipWithRangeTotals(props: any) {
+    const { active, payload, label } = props as {
+      active?: boolean;
+      payload?: any[];
+      label?: string;
+    };
+
+    if (!active || !payload || !payload.length) return null;
+
+    // compute totals across the currently filtered data for each payload key
+    const totals: Record<string, number> = {};
+    for (const p of payload) {
+      const key = p.dataKey || p.name;
+      totals[key] = filteredData.reduce((acc, d) => {
+        const v = Number((d as any)[key]);
+        return acc + (Number.isFinite(v) ? v : 0);
+      }, 0);
+    }
+
+    return (
+      <div className="border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+        <div className="font-medium">
+          {label &&
+            new Date(label).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+        </div>
+        <div className="grid gap-1.5">
+          {payload
+            .filter((item) => item.type !== "none")
+            .map((item: any) => (
+              <div
+                key={item.dataKey}
+                className="flex w-full items-center justify-between"
+              >
+                <div className="text-muted-foreground">
+                  {item.name || item.dataKey}
+                </div>
+                <div className="text-foreground font-mono font-medium tabular-nums">
+                  {Number(item.value).toLocaleString()}
+                </div>
+              </div>
+            ))}
+
+          <div className="border-t pt-2">
+            {Object.keys(totals).map((k) => (
+              <div
+                key={k}
+                className="flex w-full items-center justify-between text-sm"
+              >
+                <div className="text-muted-foreground">Range total</div>
+                <div className="text-foreground font-mono font-medium tabular-nums">
+                  {totals[k].toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const filteredData = data.filter((item) => {
     const date = new Date(item.date);
     let daysToSubtract = 90;
@@ -232,18 +296,32 @@ export function ChartAreaInteractive({
             );
           }
 
-          // Fallback: show latest value from the first series
+          // Fallback: show latest value from the first series, unless the series
+          // should be aggregated across the range (e.g. `tasks` where we want a
+          // total count). If the config entry sets `aggregate: 'sum'` we sum
+          // across `filteredData`. Otherwise we pick the latest non-empty value.
           const seriesKeys = Object.keys(config).filter(
             (k) => k !== "visitors",
           );
           const firstKey = seriesKeys[0];
           let total = 0;
+          const aggregateType = firstKey
+            ? ((config as any)[firstKey]?.aggregate as string | undefined)
+            : undefined;
+
           if (firstKey && filteredData.length) {
-            for (let i = filteredData.length - 1; i >= 0; i--) {
-              const v = Number((filteredData[i] as any)[firstKey]);
-              if (Number.isFinite(v)) {
-                total = v;
-                break;
+            if (aggregateType === "sum" || firstKey === "tasks") {
+              total = filteredData.reduce((acc, d) => {
+                const v = Number((d as any)[firstKey]);
+                return acc + (Number.isFinite(v) ? v : 0);
+              }, 0);
+            } else {
+              for (let i = filteredData.length - 1; i >= 0; i--) {
+                const v = Number((filteredData[i] as any)[firstKey]);
+                if (Number.isFinite(v)) {
+                  total = v;
+                  break;
+                }
               }
             }
           }
@@ -350,20 +428,7 @@ export function ChartAreaInteractive({
                 });
               }}
             />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  labelFormatter={(value) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })
-                  }
-                  indicator="dot"
-                />
-              }
-            />
+            <ChartTooltip cursor={false} content={<TooltipWithRangeTotals />} />
             {Object.keys(config)
               .filter((k) => k !== "visitors")
               .map((key) => (
