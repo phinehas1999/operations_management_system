@@ -22,23 +22,23 @@ const sidebarData = {
       url: "/staff/assets",
       icon: "database",
     },
-    {
-      title: "Notifications",
-      url: "/staff/notifications",
-      icon: "fileDescription",
-    },
+    // {
+    //   title: "Notifications",
+    //   url: "/staff/notifications",
+    //   icon: "fileDescription",
+    // },
   ],
   navSecondary: [
-    {
-      title: "Get Help",
-      url: "/staff/get_help",
-      icon: "help",
-    },
-    {
-      title: "Search",
-      url: "/staff/search",
-      icon: "search",
-    },
+    // {
+    //   title: "Get Help",
+    //   url: "/staff/get_help",
+    //   icon: "help",
+    // },
+    // {
+    //   title: "Search",
+    //   url: "/staff/search",
+    //   icon: "search",
+    // },
   ],
   documents: [
     {
@@ -51,11 +51,11 @@ const sidebarData = {
       url: "/staff/assets",
       icon: "database",
     },
-    {
-      name: "Notifications",
-      url: "/staff/notifications",
-      icon: "fileDescription",
-    },
+    // {
+    //   name: "Notifications",
+    //   url: "/staff/notifications",
+    //   icon: "fileDescription",
+    // },
   ],
 } satisfies SidebarData;
 

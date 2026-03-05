@@ -1,6 +1,14 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
-import { DataTable } from "@/components/data-table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { SectionCards } from "@/components/section-cards";
 import type { SectionCard } from "@/components/section-cards";
 import { SiteHeader } from "@/components/site-header";
@@ -105,6 +113,19 @@ export default async function Page() {
     },
   ];
 
+  // Fetch my tasks for the overview table
+  const tasksUrl = new URL("/api/staff/my-tasks", origin);
+  const tasksResponse = await fetch(tasksUrl, {
+    cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
+  });
+  const tasksJson = tasksResponse.ok
+    ? await tasksResponse.json()
+    : { tasks: [] };
+  const myTasks: Array<any> = Array.isArray(tasksJson?.tasks)
+    ? tasksJson.tasks
+    : [];
+
   return (
     <SidebarProvider
       style={
@@ -128,7 +149,59 @@ export default async function Page() {
                   loading={!chart}
                 />
               </div>
-              <DataTable data={data} />
+
+              <div className="px-4 lg:px-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">My Tasks Overview</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Overview of tasks assigned to you.
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-md border bg-card p-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Assigned By</TableHead>
+                        <TableHead>Due</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myTasks.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="font-medium">
+                            {t.title}
+                          </TableCell>
+                          <TableCell>{t.priority}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                String(t.status).toLowerCase() === "completed"
+                                  ? "default"
+                                  : String(t.status).toLowerCase() === "review"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                            >
+                              {t.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{t.createdBy || "—"}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {t.dueAt
+                              ? new Date(t.dueAt).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
