@@ -90,6 +90,24 @@ export default async function Page() {
     },
   ];
 
+  // fetch chart data for logged-in manager
+  const chartUrl = new URL("/api/manager/chart", origin);
+  const chartResponse = await fetch(chartUrl, {
+    cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
+  });
+  let chartData = chartAreaData.data;
+  let chartConfig = chartAreaData.config;
+  if (chartResponse.ok) {
+    try {
+      const json = await chartResponse.json();
+      if (json?.data) chartData = json.data;
+      if (json?.config) chartConfig = json.config;
+    } catch (e) {
+      // ignore parse errors and fallback to static data
+    }
+  }
+
   return (
     <SidebarProvider
       style={
@@ -108,8 +126,9 @@ export default async function Page() {
               <SectionCards items={sectionCards} loading={!metrics} />
               <div className="px-4 lg:px-6">
                 <ChartAreaInteractive
-                  data={chartAreaData.data}
-                  config={chartAreaData.config}
+                  data={chartData}
+                  config={chartConfig}
+                  loading={!metrics}
                 />
               </div>
               <DataTable data={data} />
