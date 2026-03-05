@@ -6,8 +6,17 @@ import type { SectionCard } from "@/components/section-cards";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { headers } from "next/headers";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-import data from "./constants/DataTableData";
+// removed mock DataTableData import; table below will show live My Team data
+// import data from "./constants/DataTableData";
 import siteHeaderData from "./constants/siteheaderdata";
 import sidebarData from "./constants/sidebardata";
 import chartAreaData from "./constants/chartAreadata";
@@ -108,6 +117,22 @@ export default async function Page() {
     }
   }
 
+  // fetch my team members
+  const teamUrl = new URL("/api/manager/team-members", origin);
+  const teamRes = await fetch(teamUrl, {
+    cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
+  });
+  let myTeam: Array<any> = [];
+  if (teamRes.ok) {
+    try {
+      const json = await teamRes.json();
+      myTeam = Array.isArray(json?.members) ? json.members : [];
+    } catch (e) {
+      myTeam = [];
+    }
+  }
+
   return (
     <SidebarProvider
       style={
@@ -131,7 +156,52 @@ export default async function Page() {
                   loading={!metrics}
                 />
               </div>
-              <DataTable data={data} />
+
+              <div className="px-4 lg:px-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Team overview</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Summary of members across teams you manage.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-card p-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Teams</TableHead>
+                        <TableHead>Joined</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myTeam.map((m: any) => (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">
+                            {m.name}
+                          </TableCell>
+                          <TableCell>{m.email || "—"}</TableCell>
+                          <TableCell>{m.role || "—"}</TableCell>
+                          <TableCell>
+                            {Array.isArray(m.teams) && m.teams.length > 0
+                              ? m.teams.join(", ")
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {m.createdAt
+                              ? new Date(m.createdAt).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
