@@ -290,7 +290,6 @@ export default function Home() {
           />
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
-
         {/* Hero Section */}
         <section
           ref={heroRef}
@@ -547,34 +546,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* Logo Scroll Section */}
-        <section className="border-y bg-muted/20 py-10 overflow-hidden">
-          <div className="container mx-auto px-4 mb-6 text-center">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
-              Trusted by innovative operations teams
-            </p>
-          </div>
-          <div className="marquee-track flex gap-12 items-center justify-center opacity-70 grayscale hover:grayscale-0 transition-all duration-500 flex-wrap px-4">
-            {/* Fake Logos for generic industry names */}
-            {[
-              "Acme Corp",
-              "Globex",
-              "Soylent",
-              "Initech",
-              "Massive Dynamic",
-              "Cyberdyne",
-            ].map((name, i) => (
-              <div
-                key={i}
-                className="text-xl md:text-2xl font-black text-foreground/40 select-none"
-              >
-                {name}
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Features Grid */}
         <section
           id="features"
@@ -661,39 +632,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* Stats Section with ScrollTrigger */}
-        <section
-          ref={statsRef}
-          className="border-y bg-muted/50 py-20 relative overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-20" />
-          <div className="container relative z-10 mx-auto px-4">
-            <div className="grid grid-cols-2 gap-12 md:grid-cols-4 text-center divide-x divide-border/50">
-              {[
-                { label: "Active Tenants", value: "520", suffix: "+" },
-                { label: "Tasks Completed", value: "85000", suffix: "+" },
-                { label: "Audit Events", value: "1200", suffix: "k" },
-                { label: "Uptime", value: "99", suffix: ".9%" },
-              ].map((stat, i) => (
-                <div key={i} className="flex flex-col items-center p-4">
-                  <div className="text-5xl md:text-6xl font-black mb-4 flex items-baseline tracking-tighter text-foreground">
-                    <span className="stat-number" data-value={stat.value}>
-                      0
-                    </span>
-                    <span className="text-4xl text-muted-foreground/50 ml-1">
-                      {stat.suffix}
-                    </span>
-                  </div>
-                  <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* CTA Section */}
         <section className="py-24 lg:py-32 relative overflow-hidden">
           <div className="container relative z-10 mx-auto px-4">
@@ -721,7 +659,6 @@ export default function Home() {
                   <Link href="/landing/pricing">
                     <Button
                       size="lg"
-                      variant="outline"
                       className="h-14 px-10 text-lg bg-background text-foreground hover:bg-background/90 hover:scale-105 transition-all"
                     >
                       Compare Plans
@@ -739,7 +676,7 @@ export default function Home() {
 
       <footer className="border-t bg-background py-16">
         <div className="container mx-auto px-4 md:px-8">
-          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-4">
               <div className="flex items-center gap-2 text-xl font-bold">
                 <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
@@ -771,97 +708,24 @@ export default function Home() {
                     Pricing
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Changelog
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Documentation
-                  </Link>
-                </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold mb-6">Company</h4>
+              <h4 className="font-bold mb-6">Contact</h4>
               <ul className="space-y-4 text-muted-foreground">
                 <li>
-                  <Link
-                    href="#"
+                  <a
+                    href="mailto:info@oms.com"
                     className="hover:text-primary transition-colors"
                   >
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold mb-6">Legal</h4>
-              <ul className="space-y-4 text-muted-foreground">
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="hover:text-primary transition-colors"
-                  >
-                    Cookie Policy
-                  </Link>
+                    info@oms.com
+                  </a>
                 </li>
               </ul>
             </div>
           </div>
           <div className="mt-16 pt-8 border-t flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} OMS Inc. All rights reserved.</p>
-            <div className="flex gap-6">
-              <Globe2 className="h-5 w-5 hover:text-primary cursor-pointer transition-colors" />
-              {/* Add social icons if needed */}
-            </div>
           </div>
         </div>
       </footer>
