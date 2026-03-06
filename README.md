@@ -20,13 +20,13 @@ Designed for efficiency and scalability, OMS enables organizations to transition
 
 ## 📸 Screenshots
 
-|                 Admin Dashboard                  |                 Task Board                  |
-| :----------------------------------------------: | :-----------------------------------------: |
-| ![Admin Dashboard](/preview/admin_dashboard.png) | ![Task Board](/preview/admin_taskboard.png) |
+|                    Admin Dashboard                     |                    Task Board                     |
+| :----------------------------------------------------: | :-----------------------------------------------: |
+| ![Admin Dashboard](public/preview/admin_dashboard.png) | ![Task Board](public/preview/admin_taskboard.png) |
 
-|            Asset Management            |                   Superadmin Billing                   |
-| :------------------------------------: | :----------------------------------------------------: |
-| ![Asset List](/preview/asset_list.png) | ![Superadmin Billing](/preview/superadmin_billing.png) |
+|               Asset Management               |                      Superadmin Billing                      |
+| :------------------------------------------: | :----------------------------------------------------------: |
+| ![Asset List](public/preview/asset_list.png) | ![Superadmin Billing](public/preview/superadmin_billing.png) |
 
 ---
 
