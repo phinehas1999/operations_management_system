@@ -1,8 +1,5 @@
 # Operations Management System (OMS)
 
-![OMS Banner](public/oms-banner-placeholder.png)
-_(Place screenshot of Landing Page here)_
-
 ## 🚀 Overview
 
 **OMS** is an enterprise-grade Operating System for modern teams. It centralizes operations by orchestrating tasks, managing dispersed assets, and enforcing security policies across multiple tenants—all from one command center.
@@ -23,13 +20,13 @@ Designed for efficiency and scalability, OMS enables organizations to transition
 
 ## 📸 Screenshots
 
-|               Admin Dashboard                |               Task Board                |
-| :------------------------------------------: | :-------------------------------------: |
-| _(Place screenshot of Admin Dashboard here)_ | _(Place screenshot of Task Board here)_ |
+|                 Admin Dashboard                  |                 Task Board                  |
+| :----------------------------------------------: | :-----------------------------------------: |
+| ![Admin Dashboard](/preview/admin_dashboard.png) | ![Task Board](/preview/admin_taskboard.png) |
 
-|            Asset Management             |             Superadmin Billing             |
-| :-------------------------------------: | :----------------------------------------: |
-| _(Place screenshot of Asset List here)_ | _(Place screenshot of Billing Panel here)_ |
+|            Asset Management            |                   Superadmin Billing                   |
+| :------------------------------------: | :----------------------------------------------------: |
+| ![Asset List](/preview/asset_list.png) | ![Superadmin Billing](/preview/superadmin_billing.png) |
 
 ---
 
@@ -157,4 +154,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📞 Contact
 
-Project Link: [https://github.com/your-username/operations_management_system](https://github.com/your-username/operations_management_system)
+Project Link: [https://github.com/phinehas1999/operations_management_system](https://github.com/phinehas1999/operations_management_system)
