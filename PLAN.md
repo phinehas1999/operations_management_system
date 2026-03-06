@@ -1,401 +1,130 @@
-# 🏗 Project: Smart Operations Management System (OMS)
+# 🏗 Project: Operations Management System (OMS)
 
-Production-style internal business dashboard with RBAC, tasks, assets, notifications, and reports.
-Multi-tenant SaaS with role areas and tenant scoping:
-
-- Admin → /admin
-- Manager → /manager
-- Staff → /staff
-- Platform Superadmin (software provider) → /superadmin (manages tenants and platform)
-
----
-
-# 0️⃣ Goals
-
-- Ship a client-ready internal dashboard with clear permissions, reliable auth, and seeded demo data.
-- Favor maintainability: typed DB schema (Drizzle), predictable auth (NextAuth), solid migrations, and clean API boundaries.
+A robust, multi-tenant SaaS platform for enterprise operations management. This system orchestrates tasks, assets, and teams across multiple isolated tenants, featuring role-based access control (RBAC) and comprehensive billing/audit capabilities.
 
 ---
 
 # 1️⃣ Core Architecture
 
-## Tech Stack (Final)
+## Tech Stack
 
-- **Frontend:** Next.js (App Router)
-- **Styling:** TailwindCSS
-- **Backend:** Next.js API routes
-- **Database:** PostgreSQL
-- **ORM:** Drizzle
-- **Auth:** NextAuth (credentials, JWT strategy; OAuth can be added later)
-- **Deployment:** Vercel (frontend) + Neon (DB)
+- **Frontend:** Next.js 16 (App Router), React 19, TailwindCSS, Lucide/Tabler Icons.
+- **Backend:** Next.js Server Actions & API Routes.
+- **Database:** PostgreSQL (Neon Serverless), Drizzle ORM.
+- **Authentication:** NextAuth v5 (Credentials Provider), Argon2 for hashing.
+- **Validation:** Zod schemas.
+- **UI Components:** Radix UI primitives, Shadcn/ui patterns, Sonner (toasts).
+- **Animations:** GSAP (landing & interactive elements).
 
-Notes
+## Multi-Tenant Strategy
 
-- Drizzle migrations own schema changes.
-- NextAuth: store sessions in DB; hash passwords (argon2/bcrypt); include userId, role, tenantId, and isSuperAdmin in JWT; redirect to /admin, /manager, /staff, /superadmin.
-- Use Zod for input validation; add basic rate limiting on auth endpoints.
-- Neon is the primary Postgres DB (serverless, branching, fast deploys).
-
----
-
-# 2️⃣ Database Design
-
-Conventions
-
-- IDs: UUID (text) primary keys. If you prefer integers, switch to `serial` and adjust Drizzle types.
-- Timestamps: `created_at` default `now()`. Add `updated_at` where useful.
-- Enums: `role`, `priority`, `status`, `asset_action`.
-
-## Tables
-
-### tenants
-
-| column     | type        | constraints            | notes                   |
-| ---------- | ----------- | ---------------------- | ----------------------- |
-| id         | uuid        | pk                     |                         |
-| slug       | text        | unique, not null       | used for subdomain/path |
-| name       | text        | not null               | tenant name             |
-| plan_id    | uuid        | fk -> billing_plans.id | billing/feature tier    |
-| settings   | jsonb       | default {}             | branding, feature flags |
-| created_at | timestamptz | default now()          |                         |
-
-### users
-
-| column        | type        | constraints                               | notes                             |
-| ------------- | ----------- | ----------------------------------------- | --------------------------------- |
-| id            | uuid        | pk                                        |                                   |
-| name          | text        | not null                                  |                                   |
-| email         | text        | not null, unique                          |                                   |
-| password      | text        | not null                                  | hashed                            |
-| role          | enum        | not null, default STAFF                   | SUPERADMIN\|ADMIN\|MANAGER\|STAFF |
-| tenant_id     | uuid        | fk -> tenants.id, nullable for superadmin | tenant scoping                    |
-| is_superadmin | boolean     | default false                             | platform-level flag               |
-| team_id       | uuid        | fk -> teams.id, nullable                  | single-team membership (v1)       |
-| created_at    | timestamptz | default now()                             |                                   |
-
-### teams
-
-| column     | type        | constraints   | notes |
-| ---------- | ----------- | ------------- | ----- |
-| id         | uuid        | pk            |       |
-| name       | text        | not null      |       |
-| created_at | timestamptz | default now() |       |
-
-### tasks
-
-| column      | type        | constraints                | notes                                |
-| ----------- | ----------- | -------------------------- | ------------------------------------ |
-| id          | uuid        | pk                         |                                      |
-| title       | text        | not null                   |                                      |
-| description | text        | nullable                   |                                      |
-| priority    | enum        | default MEDIUM             | LOW\|MEDIUM\|HIGH                    |
-| status      | enum        | default TODO               | TODO\|IN_PROGRESS\|REVIEW\|COMPLETED |
-| deadline    | timestamptz | nullable                   |                                      |
-| assigned_to | uuid        | fk -> users.id, nullable   |                                      |
-| created_by  | uuid        | fk -> users.id, not null   |                                      |
-| team_id     | uuid        | fk -> teams.id, nullable   |                                      |
-| tenant_id   | uuid        | fk -> tenants.id, not null | tenant scoping                       |
-| created_at  | timestamptz | default now()              |                                      |
-
-### task_comments
-
-| column     | type        | constraints                | notes |
-| ---------- | ----------- | -------------------------- | ----- |
-| id         | uuid        | pk                         |       |
-| task_id    | uuid        | fk -> tasks.id, not null   |       |
-| user_id    | uuid        | fk -> users.id, not null   |       |
-| message    | text        | not null                   |       |
-| tenant_id  | uuid        | fk -> tenants.id, not null |       |
-| created_at | timestamptz | default now()              |       |
-
-### assets
-
-| column            | typeV       | constraints                | notes            |
-| ----------------- | ----------- | -------------------------- | ---------------- |
-| id                | uuid        | pk                         |                  |
-| name              | text        | not null                   |                  |
-| category          | text        | nullable                   |                  |
-| quantity          | integer     | not null, default 0        |                  |
-| minimum_threshold | integer     | not null, default 0        | low-stock alerts |
-| team_id           | uuid        | fk -> teams.id, nullable   |                  |
-| tenant_id         | uuid        | fk -> tenants.id, not null |                  |
-| created_at        | timestamptz | default now()              |                  |
-
-### asset_logs
-
-| column     | type        | constraints               | notes                         |
-| ---------- | ----------- | ------------------------- | ----------------------------- |
-| id         | uuid        | pk                        |                               |
-| asset_id   | uuid        | fk -> assets.id, not null |                               |
-| action     | enum        | not null                  | ADDED\|USED\|UPDATED          |
-| quantity   | integer     | not null                  | delta or absolute (decide v1) |
-| user_id    | uuid        | fk -> users.id, nullable  | actor                         |
-| created_at | timestamptz | default now()             |                               |
-
-### notifications
-
-| column     | type        | constraints              | notes |
-| ---------- | ----------- | ------------------------ | ----- |
-| id         | uuid        | pk                       |       |
-| user_id    | uuid        | fk -> users.id, not null |       |
-| message    | text        | not null                 |       |
-| read       | boolean     | not null, default false  |       |
-| created_at | timestamptz | default now()            |       |
-
-Indexes (recommended)
-
-- users: email (unique), team_id
-- tasks: status, priority, deadline, assigned_to, team_id
-- task_comments: task_id, user_id
-- assets: team_id, quantity, minimum_threshold
-- asset_logs: asset_id, user_id
-- notifications: user_id, read
-
-Relationships
-
-- User belongs to one team (v1). Tasks and assets can optionally link to a team.
-- Task `created_by` and `assigned_to` reference users.
-- Asset logs reference assets and optionally the acting user.
-- Notifications belong to users.
+- **Isolation Level:** Logical Isolation (Shared Database, Discriminator Column).
+- **Implementation:**
+  - Every tenant-scoped table (`users`, `tasks`, `assets`, `teams`) includes a `tenant_id` foreign key.
+  - `lib/tenant-auth.ts` enforces tenant context verification for every protected route.
+  - Superadmins can bypass tenant checks to manage the platform globally.
 
 ---
 
-# 3️⃣ Authentication & Routing
+# 2️⃣ User Roles & Permissions
 
-Build
-
-- Register
-- Login
-- Protected routes
-- Middleware for role checking and role-based redirects to /admin, /manager, /staff, /superadmin
-- Tenant discovery: subdomain (tenant.app.com) or path (/t/tenant); middleware loads tenant by slug and sets tenantId in request context
-
-Role Access Rules (aligned to current UI)
-
-- SUPERADMIN (platform): platform-wide controls; tenants registry & provisioning, billing & plans, platform settings, audit/logs, support/impersonation, platform docs/search/help.
-- ADMIN (tenant): tenant-wide controls; dashboard, users & roles, teams, all tasks, all assets, reports, tenant settings, search/help.
-- MANAGER (tenant): team-scoped controls; dashboard, team tasks, team assets, reports slice, team roster/assignments, search/help.
-- STAFF (tenant): individual scope; dashboard, my tasks, task status updates, read-only assets, notifications, search/help.
-
-Implementation Notes
-
-- NextAuth credentials provider + Drizzle adapter; JWT session strategy.
-- Hash passwords (argon2/bcrypt). Store refresh-like behavior via NextAuth session rotation if needed.
-- Middleware: check session + role per route segment; enforce landing per role; redirect away from unauthorized sections.
-- Route map:
-  - /superadmin → platform area for tenant provisioning, billing, global settings
-  - /admin → tenant admin dashboard + user/team management + system settings + full reports
-  - /manager → tenant manager dashboard + task/asset oversight + assignments + reports slice
-  - /staff → tenant staff dashboard + my tasks + status updates + read-only assets
+| Role           | Scope       | Key Responsibilities                                                             | Route Prefix  |
+| :------------- | :---------- | :------------------------------------------------------------------------------- | :------------ |
+| **Superadmin** | Platform    | Manage tenants, billing plans, payment approvals, platform settings.             | `/superadmin` |
+| **Admin**      | Tenant      | Full control over tenant data: Users, Roles, Teams, Billing, Audit Logs.         | `/admin`      |
+| **Manager**    | Tenant/Team | Oversee specific teams, assign tasks, manage assets, view team reports.          | `/manager`    |
+| **Staff**      | Tenant      | Execute assigned tasks, view notifications, read-only access to relevant assets. | `/staff`      |
 
 ---
 
-Dashboard & Navigation (Per Role) — matches current pages
+# 3️⃣ Key Modules
 
-- Admin (/admin)
-  - Dashboard KPIs; search/help shortcuts
-  - Users & Roles; Teams; all Tasks; all Assets; Reports; Settings
+### 🛠 Tasks Engine
 
-- Superadmin (/superadmin)
-  - Platform Dashboard; Tenants registry & provisioning queue; Billing & Plans; Platform Settings; Audit & Logs; Support (incidents, impersonation); Platform Docs; Search/Help
+- **Features:** Create, Assign (to User or Team), Prioritize (Low/Medium/High), Track Status (Todo/In Progress/Review/Done).
+- **Access:** Managers assign; Staff execute.
+- **Schema:** `tasks` table with `assignee_id`, `assignee_team_id`, `deadline`.
 
-- Manager (/manager)
-  - Dashboard KPIs; Tasks (team scope); Assets (team scope); Reports (team slice); Team roster/assignments; Search/Help
+### 📦 Asset Management
 
-- Staff (/staff)
-  - Dashboard KPIs; My Tasks; task status updates; Assets (read-only); Notifications; Search/Help
+- **Features:** Inventory tracking, status monitoring (Active/Inactive), Minimum quantity thresholds.
+- **Logs:** `asset_logs` track every movement or adjustment for accountability.
 
----
+### 👥 Teams & Workforce
 
-# 5️⃣ Dashboard Page (Overview)
+- **Features:** Group users into functional units.
+- **Structure:** `teams` table linked to `users` via `user_teams` (m:n relationship).
+- **Leadership:** Teams can have designated managers.
 
-Show
+### 💳 Billing & Subscriptions
 
-- Total tasks
-- Tasks in progress
-- Completed tasks
-- Overdue tasks
-- Low stock alerts
-- Recent activity feed
+- **Features:**
+  - **Plans:** Defined coverage (seats, storage, features).
+  - **Invoices:** Auto-generated monthly/yearly.
+  - **Payments:** Manual bank transfer support with proof-of-payment upload (`payment_confirmations`).
+  - **Approvals:** Superadmins verify payments to unlock tenant features.
 
-Add
+### 🛡 Security & Audit
 
-- Bar chart (tasks per week)
-- Pie chart (task status distribution)
-
-Use a basic chart library.
+- **RBAC:** Strict role enforcement via middleware and layout checks.
+- **Audit Logs:** `audit_logs` table records critical actions (Create/Update/Delete) for compliance.
 
 ---
 
-# 6️⃣ Task Management Module (Core Feature)
+# 4️⃣ Authentication & Onboarding
 
-Task List Page
+### Flow
 
-- Search
-- Filter by status
-- Filter by priority
-- Filter by assigned user
-- Pagination
-
-Task Creation Form
-
-- Title
-- Description
-- Priority
-- Deadline
-- Assign user
-
-Task Detail Page
-
-- Full description
-- Assigned staff
-- Deadline
-- Status
-- Comments section
-- File upload (optional)
-
-Allow
-
-- Status update
-- Comment posting
-- Edit (role-based)
+1. **Sign Up:** `/auth/create_company_account`
+   - Creates a new `tenant`.
+   - Creates the first `user` (Admin).
+   - Auto-logs in.
+2. **Login:** `/auth/login`
+   - Helper looking up user by email.
+   - Session includes `tenantId` and `role`.
+3. **Session Management:**
+   - Database strategy using NextAuth `sessions` table.
+   - Secure cookie handling.
 
 ---
 
-# 7️⃣ Asset Management Module
+# 5️⃣ Database Schema Overview
 
-Asset List
+| Table                   | Purpose                                                          |
+| :---------------------- | :--------------------------------------------------------------- |
+| `tenants`               | Core entity. Contains settings, plan info, and status.           |
+| `users`                 | Global user list, scoped by `tenant_id`. Stores password hashes. |
+| `billing_plans`         | SaaS tier definitions.                                           |
+| `invoices`              | Billing records linked to tenants.                               |
+| `payment_confirmations` | Proof of payment uploads.                                        |
+| `teams`                 | Functional groups within a tenant.                               |
+| `tasks`                 | Work units.                                                      |
+| `assets`                | Inventory items.                                                 |
+| `audit_logs`            | Compliance trail.                                                |
 
-- Name
-- Category
-- Quantity
-- Status (Low / Healthy)
-- Last Updated
-
-Highlight red if below threshold.
-
-Asset Actions
-
-- Add new asset
-- Update quantity
-- Log usage
-
-Every change must create an asset_log entry.
+**Migrations:** Managed via Drizzle Kit (`drizzle/` folder).
 
 ---
 
-# 8️⃣ Notification System
+# 6️⃣ Automation & Scripts
 
-Trigger when
+Located in `/scripts`:
 
-- Task assigned
-- Task status changed
-- Deadline within 24 hours
-- Asset below threshold
-
-Start simple
-
-- Store in DB
-- Fetch on dashboard
-- Show unread badge
-
-Real-time can be added later.
+- `db-generate.js`: Custom wrapper for Drizzle generation.
+- `seed-tenants.ts`: Populates dev DB with mock tenants/users.
+- `seed-billing.ts`: Sets up default pricing plans.
+- `seed-superadmin.ts`: Creates the initial platform superadmin account.
+- `check-*.js`: Diagnostics for schema consistency.
 
 ---
 
-# 9️⃣ Reports Module
+# 7️⃣ Setup & Contribution
 
-Create
+See `README.md` for detailed installation steps.
 
-Staff Performance Report
+**Workflow:**
 
-- Tasks completed per user
-- Average completion time
-
-Task Report
-
-- Tasks by status
-- Tasks by priority
-- Overdue tasks count
-
-Asset Report
-
-- Most used assets
-- Low stock frequency
-
-Add CSV export.
-
----
-
-# 🔟 Admin / Team Management
-
-Admin can
-
-- Create users
-- Assign roles
-- Create teams
-- Move users between teams
-- Deactivate accounts
-
-Consider adding an audit log later.
-
----
-
-# 1️⃣1️⃣ UI/UX Requirements
-
-Make it clean and premium
-
-- Soft shadows
-- Rounded cards
-- Clear typography
-- Status badges
-- Color-coded priorities
-- Responsive layout
-
----
-
-# 1️⃣2️⃣ Deployment & Demo Setup
-
-Seed database with
-
-- 1 Admin
-- 2 Managers
-- 4 Staff
-- 20 tasks
-- 10 assets
-
-Seeding notes
-
-- Use realistic deadlines, priorities, and statuses; include some overdue tasks for KPIs.
-- Seed low-stock assets to surface alerts.
-- Create demo credentials on the landing page.
-
----
-
-# 1️⃣3️⃣ README
-
-Explain
-
-- System architecture
-- RBAC design
-- Database structure
-- Business logic decisions
-- Scalability considerations
-
----
-
-# 🔥 Now We Get Tactical
-
-Build in 5 phases
-
-- Phase 1: Auth + Roles
-- Phase 2: Task System
-- Phase 3: Asset System
-- Phase 4: Reports
-- Phase 5: Polish + Deployment
-
-If you want, I can now:
-
-- Break this into a 30-day build schedule
-- Design the folder structure and API routes
-- Draft the Drizzle schema and initial migration + seeds
+1. modify `db/schema.ts`
+2. `npm run db:generate`
+3. `npm run db:migrate`
+4. Update API/UI components.
